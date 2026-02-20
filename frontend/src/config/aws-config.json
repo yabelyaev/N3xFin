@@ -1,0 +1,7 @@
+{
+  "apiGatewayUrl": "https://wiqpao4gze.execute-api.us-east-1.amazonaws.com/Prod",
+  "region": "us-east-1",
+  "userPoolId": "us-east-1_NaaLLNMZD",
+  "userPoolClientId": "qdhcfpkudk444soeg0hpnhgdu",
+  "s3BucketName": "n3xfin-data-087305321237"
+}

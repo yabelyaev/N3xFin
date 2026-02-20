@@ -72,8 +72,6 @@ htmlcov/
 *SECRET*
 *credentials*
 *CREDENTIALS*
-aws-config.json
-config.json
 
 # Documentation & Notes
 *.md
