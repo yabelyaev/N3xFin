@@ -30,7 +30,8 @@ export function LoginForm() {
 
     try {
       const response = await apiService.login(email, password);
-      const { user, token } = response.data;
+      const responseData = 'data' in response ? response.data : response;
+      const { user, token } = responseData;
 
       // Store authentication data
       setAuthToken(token.accessToken, token.refreshToken, token.expiresIn);

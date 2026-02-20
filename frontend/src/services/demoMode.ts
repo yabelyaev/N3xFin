@@ -1,5 +1,5 @@
 // Demo mode service - provides mock API responses
-import { mockTransactions, mockAnalytics, mockAnomalies, mockPredictions, mockRecommendations, mockReports } from './mockData';
+import { mockAnalytics, mockAnomalies, mockPredictions, mockRecommendations, mockReports } from './mockData';
 
 export const demoModeService = {
   // Auth
@@ -58,7 +58,7 @@ export const demoModeService = {
     return { data: mockReports };
   },
 
-  getReport: async (month: string) => {
+  getReport: async (_month: string) => {
     return { data: mockReports[0] };
   },
 

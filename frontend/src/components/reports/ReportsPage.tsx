@@ -8,7 +8,7 @@ export const ReportsPage: React.FC = () => {
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportSuccess, setExportSuccess] = useState<string | null>(null);
 
-  const handleExportPDF = async (reportId: string) => {
+  const handleExportPDF = async (_reportId: string) => {
     try {
       setExportError(null);
       setExportSuccess(null);

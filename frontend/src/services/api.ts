@@ -1,6 +1,7 @@
 // API Service Layer for N3xFin
 import axios, { type AxiosInstance } from 'axios';
 import { isDemoMode, demoModeService } from './demoMode';
+import { API_BASE_URL } from '../config/aws-config';
 
 class ApiService {
   private client: AxiosInstance;
@@ -8,7 +9,7 @@ class ApiService {
 
   constructor() {
     this.client = axios.create({
-      baseURL: '', // Will be set from aws-config
+      baseURL: API_BASE_URL,
       headers: {
         'Content-Type': 'application/json',
       },
