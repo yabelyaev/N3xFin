@@ -2,8 +2,8 @@
 import json
 import uuid
 from typing import Dict, Any
-from .auth_service import AuthService
-from ..common.errors import create_error_response, N3xFinError
+from auth.auth_service import AuthService
+from common.errors import create_error_response, N3xFinError
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:

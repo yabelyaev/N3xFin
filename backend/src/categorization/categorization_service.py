@@ -2,9 +2,9 @@
 import json
 import boto3
 from typing import List, Dict, Any
-from ..common.config import config
-from ..common.models import CATEGORIES, Transaction
-from ..common.errors import ExternalServiceError
+from common.config import config
+from common.models import CATEGORIES, Transaction
+from common.errors import ExternalServiceError
 
 
 class CategorizationService:

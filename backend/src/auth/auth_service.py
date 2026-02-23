@@ -3,8 +3,8 @@ import boto3
 import re
 from typing import Dict, Any, Optional
 from botocore.exceptions import ClientError
-from ..common.config import config
-from ..common.errors import ValidationError, AuthorizationError
+from common.config import config
+from common.errors import ValidationError, AuthorizationError
 
 
 class AuthService:

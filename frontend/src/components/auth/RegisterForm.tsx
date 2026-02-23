@@ -1,7 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../../services/api';
-import { setAuthToken, setUser } from '../../utils/auth';
 import { validateEmail, validatePassword } from '../../utils/validation';
 
 export function RegisterForm() {
@@ -51,17 +50,13 @@ export function RegisterForm() {
 
     try {
       const response = await apiService.register(email, password);
-      const { user, token } = response.data;
-
-      // Store authentication data
-      setAuthToken(token.accessToken, token.refreshToken, token.expiresIn);
-      setUser(user);
-      apiService.setToken(token.accessToken);
-
-      // Navigate to dashboard
-      navigate('/dashboard');
+      
+      // Registration successful - AWS Cognito will send verification email
+      // Show success message and redirect to login
+      alert(response.data.message || 'Registration successful! Please check your email to verify your account.');
+      navigate('/login');
     } catch (err: any) {
-      if (err.response?.status === 409) {
+      if (err.response?.status === 409 || err.response?.data?.error?.code === 'UsernameExistsException') {
         setError('An account with this email already exists');
       } else if (err.response?.data?.error?.message) {
         setError(err.response.data.error.message);

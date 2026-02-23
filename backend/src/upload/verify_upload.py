@@ -2,8 +2,8 @@
 import json
 import uuid
 from typing import Dict, Any
-from .upload_service import UploadService
-from ..common.errors import create_error_response, N3xFinError
+from upload.upload_service import UploadService
+from common.errors import create_error_response, N3xFinError
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:

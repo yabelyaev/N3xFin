@@ -4,8 +4,8 @@ import uuid
 import mimetypes
 from datetime import datetime, timedelta
 from typing import Dict, Any, Tuple
-from ..common.config import config
-from ..common.errors import ValidationError
+from common.config import config
+from common.errors import ValidationError
 
 
 class UploadService:

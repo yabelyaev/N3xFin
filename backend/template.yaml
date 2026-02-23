@@ -21,6 +21,7 @@ Globals:
       AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
       AllowHeaders: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
       AllowOrigin: "'*'"
+      AllowCredentials: false
 
 Resources:
   # Cognito User Pool
@@ -201,8 +202,8 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: n3xfin-register
-      CodeUri: src/auth/
-      Handler: register.lambda_handler
+      CodeUri: src/
+      Handler: auth.register.lambda_handler
       Policies:
         - Statement:
             - Effect: Allow
@@ -225,8 +226,8 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: n3xfin-login
-      CodeUri: src/auth/
-      Handler: login.lambda_handler
+      CodeUri: src/
+      Handler: auth.login.lambda_handler
       Policies:
         - Statement:
             - Effect: Allow
@@ -245,8 +246,8 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: n3xfin-verify
-      CodeUri: src/auth/
-      Handler: verify.lambda_handler
+      CodeUri: src/
+      Handler: auth.verify.lambda_handler
       Policies:
         - Statement:
             - Effect: Allow
@@ -264,8 +265,8 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: n3xfin-logout
-      CodeUri: src/auth/
-      Handler: logout.lambda_handler
+      CodeUri: src/
+      Handler: auth.logout.lambda_handler
       Policies:
         - Statement:
             - Effect: Allow
@@ -284,8 +285,8 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: n3xfin-get-upload-url
-      CodeUri: src/upload/
-      Handler: get_upload_url.lambda_handler
+      CodeUri: src/
+      Handler: upload.get_upload_url.lambda_handler
       Policies:
         - Statement:
             - Effect: Allow
@@ -303,8 +304,8 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: n3xfin-verify-upload
-      CodeUri: src/upload/
-      Handler: verify_upload.lambda_handler
+      CodeUri: src/
+      Handler: upload.verify_upload.lambda_handler
       Policies:
         - Statement:
             - Effect: Allow
@@ -323,8 +324,8 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: n3xfin-list-files
-      CodeUri: src/upload/
-      Handler: list_files.lambda_handler
+      CodeUri: src/
+      Handler: upload.list_files.lambda_handler
       Policies:
         - Statement:
             - Effect: Allow
@@ -343,8 +344,8 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: n3xfin-get-analytics
-      CodeUri: src/analytics/
-      Handler: get_analytics.lambda_handler
+      CodeUri: src/
+      Handler: analytics.get_analytics.lambda_handler
       Policies:
         - Statement:
             - Effect: Allow
@@ -365,8 +366,8 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: n3xfin-submit-anomaly-feedback
-      CodeUri: src/analytics/
-      Handler: submit_anomaly_feedback.lambda_handler
+      CodeUri: src/
+      Handler: analytics.submit_anomaly_feedback.lambda_handler
       Policies:
         - Statement:
             - Effect: Allow
@@ -385,8 +386,8 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: n3xfin-get-predictions
-      CodeUri: src/prediction/
-      Handler: get_predictions.lambda_handler
+      CodeUri: src/
+      Handler: prediction.get_predictions.lambda_handler
       Policies:
         - Statement:
             - Effect: Allow
@@ -406,8 +407,8 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: n3xfin-get-alerts
-      CodeUri: src/prediction/
-      Handler: get_alerts.lambda_handler
+      CodeUri: src/
+      Handler: prediction.get_alerts.lambda_handler
       Policies:
         - Statement:
             - Effect: Allow
@@ -428,8 +429,8 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: n3xfin-get-recommendations
-      CodeUri: src/recommendation/
-      Handler: get_recommendations.lambda_handler
+      CodeUri: src/
+      Handler: recommendation.get_recommendations.lambda_handler
       Policies:
         - Statement:
             - Effect: Allow
@@ -450,8 +451,8 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: n3xfin-generate-report
-      CodeUri: src/report/
-      Handler: generate_report.lambda_handler
+      CodeUri: src/
+      Handler: report.generate_report.lambda_handler
       Timeout: 60
       Policies:
         - Statement:
@@ -475,8 +476,8 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: n3xfin-ask-question
-      CodeUri: src/conversation/
-      Handler: ask_question.lambda_handler
+      CodeUri: src/
+      Handler: conversation.ask_question.lambda_handler
       Timeout: 60
       Policies:
         - Statement:

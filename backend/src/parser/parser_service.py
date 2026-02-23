@@ -7,9 +7,9 @@ import boto3
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from dateutil import parser as date_parser
-from ..common.config import config
-from ..common.errors import ProcessingError, ValidationError
-from ..common.models import Transaction
+from common.config import config
+from common.errors import ProcessingError, ValidationError
+from common.models import Transaction
 
 
 class ParserService:
