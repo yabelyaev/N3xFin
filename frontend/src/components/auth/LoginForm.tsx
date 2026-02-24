@@ -30,27 +30,37 @@ export function LoginForm() {
 
     try {
       const response = await apiService.login(email, password);
+      console.log('Login response:', response);
+      
       const responseData = 'data' in response ? response.data : response;
+      console.log('Response data:', responseData);
       
       // Backend returns: { accessToken, refreshToken, idToken, expiresIn, tokenType }
       const { accessToken, refreshToken, idToken, expiresIn } = responseData;
+      console.log('Tokens extracted:', { accessToken: !!accessToken, refreshToken: !!refreshToken, idToken: !!idToken, expiresIn });
 
       // Decode idToken to get user info (JWT payload is base64 encoded)
       const tokenParts = idToken.split('.');
       const payload = JSON.parse(atob(tokenParts[1]));
+      console.log('Decoded payload:', payload);
+      
       const user = {
         id: payload.sub,
         email: payload.email
       };
+      console.log('User object:', user);
 
       // Store authentication data
       setAuthToken(accessToken, refreshToken, expiresIn);
       setUser(user);
       apiService.setToken(accessToken);
 
+      console.log('About to navigate to dashboard');
       // Navigate to dashboard
       navigate('/dashboard');
     } catch (err: any) {
+      console.error('Login error:', err);
+      console.error('Error response:', err.response);
       if (err.response?.status === 401) {
         setError('Invalid email or password');
       } else if (err.response?.data?.error?.message) {
