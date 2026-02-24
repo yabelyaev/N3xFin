@@ -31,12 +31,22 @@ export function LoginForm() {
     try {
       const response = await apiService.login(email, password);
       const responseData = 'data' in response ? response.data : response;
-      const { user, token } = responseData;
+      
+      // Backend returns: { accessToken, refreshToken, idToken, expiresIn, tokenType }
+      const { accessToken, refreshToken, idToken, expiresIn } = responseData;
+
+      // Decode idToken to get user info (JWT payload is base64 encoded)
+      const tokenParts = idToken.split('.');
+      const payload = JSON.parse(atob(tokenParts[1]));
+      const user = {
+        id: payload.sub,
+        email: payload.email
+      };
 
       // Store authentication data
-      setAuthToken(token.accessToken, token.refreshToken, token.expiresIn);
+      setAuthToken(accessToken, refreshToken, expiresIn);
       setUser(user);
-      apiService.setToken(token.accessToken);
+      apiService.setToken(accessToken);
 
       // Navigate to dashboard
       navigate('/dashboard');
