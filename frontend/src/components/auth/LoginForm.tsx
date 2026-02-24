@@ -56,8 +56,8 @@ export function LoginForm() {
       apiService.setToken(accessToken);
 
       console.log('About to navigate to dashboard');
-      // Navigate to dashboard
-      navigate('/dashboard');
+      // Force a full page reload to update App.tsx authentication state
+      window.location.href = '/dashboard';
     } catch (err: any) {
       console.error('Login error:', err);
       console.error('Error response:', err.response);
