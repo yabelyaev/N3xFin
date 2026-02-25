@@ -84,6 +84,14 @@ export const SpendingDashboard = () => {
     );
   }
 
+  const categoryData = analyticsData?.categorySpending || [];
+  const timeSeriesData = analyticsData?.timeSeriesData || [];
+  const totalSpending = analyticsData?.totalSpending || 0;
+  const trends = analyticsData?.trends || {};
+
+  // Check if this is a new user with no data (not an error)
+  const hasNoData = !loading && !error && categoryData.length === 0 && totalSpending === 0;
+
   if (error) {
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -98,10 +106,46 @@ export const SpendingDashboard = () => {
     );
   }
 
-  const categoryData = analyticsData?.categorySpending || [];
-  const timeSeriesData = analyticsData?.timeSeriesData || [];
-  const totalSpending = analyticsData?.totalSpending || 0;
-  const trends = analyticsData?.trends || {};
+  // Show welcome message for new users
+  if (hasNoData) {
+    return (
+      <div className="bg-white rounded-lg shadow p-8 text-center">
+        <div className="max-w-md mx-auto">
+          <div className="text-6xl mb-4">📊</div>
+          <h3 className="text-2xl font-bold text-gray-900 mb-2">Welcome to N3xFin!</h3>
+          <p className="text-gray-600 mb-6">
+            Get started by uploading your first bank statement to see your spending insights, detect anomalies, and discover savings opportunities.
+          </p>
+          <a
+            href="/upload"
+            className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+          >
+            Upload Bank Statement
+          </a>
+          <div className="mt-8 pt-8 border-t border-gray-200">
+            <p className="text-sm text-gray-500 mb-4">What you'll get:</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
+              <div>
+                <div className="text-2xl mb-2">📈</div>
+                <h4 className="font-semibold text-gray-900 text-sm">Spending Analytics</h4>
+                <p className="text-xs text-gray-600">Track spending by category and over time</p>
+              </div>
+              <div>
+                <div className="text-2xl mb-2">🔍</div>
+                <h4 className="font-semibold text-gray-900 text-sm">Anomaly Detection</h4>
+                <p className="text-xs text-gray-600">Identify unusual transactions automatically</p>
+              </div>
+              <div>
+                <div className="text-2xl mb-2">💰</div>
+                <h4 className="font-semibold text-gray-900 text-sm">Savings Tips</h4>
+                <p className="text-xs text-gray-600">Get personalized recommendations</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Sort category data based on selected sort option and order
   const sortedCategoryData = [...categoryData].sort((a, b) => {
