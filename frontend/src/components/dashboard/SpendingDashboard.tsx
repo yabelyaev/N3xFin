@@ -48,7 +48,17 @@ export const SpendingDashboard = () => {
         trends: categoryResponse.data.trends || {},
       });
     } catch (err: any) {
-      setError(err.response?.data?.error?.message || 'Failed to load analytics data');
+      // Don't show error for 404 (no data) - this is expected for new users
+      if (err.response?.status === 404) {
+        setAnalyticsData({
+          categorySpending: [],
+          timeSeriesData: [],
+          totalSpending: 0,
+          trends: {},
+        });
+      } else {
+        setError(err.response?.data?.error?.message || 'Failed to load analytics data');
+      }
     } finally {
       setLoading(false);
     }
