@@ -10,7 +10,8 @@ export function Navigation() {
       disableDemoMode();
     }
     localStorage.clear();
-    navigate('/login');
+    // Force full page reload to reset authentication state
+    window.location.href = '/login';
   };
 
   const navItems = [
