@@ -5,8 +5,8 @@ Lambda function for submitting anomaly feedback.
 import json
 from typing import Dict, Any
 
-from src.analytics.analytics_service import AnalyticsService
-from src.common.errors import ValidationError
+from analytics.analytics_service import AnalyticsService
+from common.errors import ValidationError
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:

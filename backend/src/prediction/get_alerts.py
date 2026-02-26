@@ -5,8 +5,8 @@ Lambda function for retrieving spending alerts.
 import json
 from typing import Dict, Any
 
-from src.prediction.prediction_service import PredictionService
-from src.common.errors import ValidationError
+from prediction.prediction_service import PredictionService
+from common.errors import ValidationError
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:

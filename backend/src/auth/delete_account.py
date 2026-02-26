@@ -5,8 +5,8 @@ Lambda function for requesting account deletion.
 import json
 from typing import Dict, Any
 
-from src.auth.deletion_service import DeletionService
-from src.common.errors import ValidationError, NotFoundError
+from auth.deletion_service import DeletionService
+from common.errors import ValidationError, NotFoundError
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:

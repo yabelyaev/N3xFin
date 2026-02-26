@@ -6,8 +6,8 @@ import json
 from datetime import datetime
 from typing import Dict, Any
 
-from src.report.report_service import ReportService
-from src.common.errors import ValidationError
+from report.report_service import ReportService
+from common.errors import ValidationError
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:

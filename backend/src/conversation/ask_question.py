@@ -5,8 +5,8 @@ Lambda function for conversational Q&A.
 import json
 from typing import Dict, Any
 
-from src.conversation.conversation_service import ConversationService
-from src.common.errors import ValidationError
+from conversation.conversation_service import ConversationService
+from common.errors import ValidationError
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:

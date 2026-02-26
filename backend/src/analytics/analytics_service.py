@@ -12,8 +12,8 @@ import statistics
 import boto3
 from boto3.dynamodb.conditions import Key, Attr
 
-from src.common.config import Config
-from src.common.errors import ValidationError
+from common.config import Config
+from common.errors import ValidationError
 
 
 class AnalyticsService:

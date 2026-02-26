@@ -5,8 +5,8 @@ Lambda function for retrieving savings recommendations.
 import json
 from typing import Dict, Any
 
-from src.recommendation.recommendation_service import RecommendationService
-from src.common.errors import ValidationError
+from recommendation.recommendation_service import RecommendationService
+from common.errors import ValidationError
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
