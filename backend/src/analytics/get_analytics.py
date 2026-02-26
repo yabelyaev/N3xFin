@@ -21,12 +21,21 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         - granularity: 'day' | 'week' | 'month' (for timeseries)
         - category: category name (for trends)
     """
+    # CORS headers for all responses
+    cors_headers = {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+        'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
+    }
+    
     try:
         # Extract user ID from authorizer context
         user_id = event.get('requestContext', {}).get('authorizer', {}).get('claims', {}).get('sub')
         if not user_id:
             return {
                 'statusCode': 401,
+                'headers': cors_headers,
                 'body': json.dumps({'error': 'Unauthorized'})
             }
         
@@ -44,6 +53,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             except ValueError:
                 return {
                     'statusCode': 400,
+                    'headers': cors_headers,
                     'body': json.dumps({'error': 'Invalid startDate format. Use ISO 8601.'})
                 }
         
@@ -53,6 +63,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             except ValueError:
                 return {
                     'statusCode': 400,
+                    'headers': cors_headers,
                     'body': json.dumps({'error': 'Invalid endDate format. Use ISO 8601.'})
                 }
         
@@ -60,6 +71,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if start_date >= end_date:
             return {
                 'statusCode': 400,
+                'headers': cors_headers,
                 'body': json.dumps({'error': 'startDate must be before endDate'})
             }
         
@@ -84,6 +96,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         else:
             return {
                 'statusCode': 400,
+                'headers': cors_headers,
                 'body': json.dumps({
                     'error': f'Invalid analytics type: {analytics_type}',
                     'validTypes': ['category', 'timeseries', 'anomalies', 'trends']
@@ -92,10 +105,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         
         return {
             'statusCode': 200,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
-            },
+            'headers': cors_headers,
             'body': json.dumps({
                 'type': analytics_type,
                 'data': data,
@@ -109,12 +119,14 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     except ValidationError as e:
         return {
             'statusCode': 400,
+            'headers': cors_headers,
             'body': json.dumps({'error': str(e)})
         }
     
     except NotFoundError as e:
         return {
             'statusCode': 404,
+            'headers': cors_headers,
             'body': json.dumps({'error': str(e)})
         }
     
@@ -122,5 +134,6 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         print(f"Error in get_analytics: {str(e)}")
         return {
             'statusCode': 500,
+            'headers': cors_headers,
             'body': json.dumps({'error': 'Internal server error'})
         }
