@@ -22,6 +22,11 @@ Globals:
       AllowHeaders: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
       AllowOrigin: "'*'"
       AllowCredentials: false
+    Auth:
+      DefaultAuthorizer: CognitoAuthorizer
+      Authorizers:
+        CognitoAuthorizer:
+          UserPoolArn: !GetAtt UserPool.Arn
 
 Resources:
   # Cognito User Pool
@@ -221,6 +226,8 @@ Resources:
           Properties:
             Path: /auth/register
             Method: POST
+            Auth:
+              Authorizer: NONE
 
   LoginFunction:
     Type: AWS::Serverless::Function
@@ -241,6 +248,8 @@ Resources:
           Properties:
             Path: /auth/login
             Method: POST
+            Auth:
+              Authorizer: NONE
 
   VerifyFunction:
     Type: AWS::Serverless::Function
@@ -260,6 +269,8 @@ Resources:
           Properties:
             Path: /auth/verify
             Method: POST
+            Auth:
+              Authorizer: NONE
 
   LogoutFunction:
     Type: AWS::Serverless::Function
@@ -279,6 +290,8 @@ Resources:
           Properties:
             Path: /auth/logout
             Method: POST
+            Auth:
+              Authorizer: NONE
 
   # Upload Lambda Functions
   GetUploadUrlFunction:

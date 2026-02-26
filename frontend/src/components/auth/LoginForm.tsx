@@ -43,10 +43,10 @@ export function LoginForm() {
         email: payload.email
       };
 
-      // Store authentication data
-      setAuthToken(accessToken, refreshToken, expiresIn);
+      // Store authentication data - use idToken for API Gateway Cognito authorizer
+      setAuthToken(idToken, refreshToken, expiresIn);
       setUser(user);
-      apiService.setToken(accessToken);
+      apiService.setToken(idToken);
 
       // Force a full page reload to update App.tsx authentication state
       window.location.href = '/dashboard';
