@@ -30,15 +30,15 @@ class ApiService {
     this.client.interceptors.response.use(
       (response: any) => response,
       (error: any) => {
-        if (error.response?.status === 401) {
-          // Handle unauthorized - redirect to login
-          this.clearToken();
-          localStorage.removeItem('authToken');
-          localStorage.removeItem('refreshToken');
-          localStorage.removeItem('tokenExpiry');
-          localStorage.removeItem('user');
-          window.location.href = '/login';
-        }
+        // Don't auto-redirect on 401 - let components handle it
+        // if (error.response?.status === 401) {
+        //   this.clearToken();
+        //   localStorage.removeItem('authToken');
+        //   localStorage.removeItem('refreshToken');
+        //   localStorage.removeItem('tokenExpiry');
+        //   localStorage.removeItem('user');
+        //   window.location.href = '/login';
+        // }
         return Promise.reject(error);
       }
     );
