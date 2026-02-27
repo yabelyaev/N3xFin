@@ -151,6 +151,9 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
 
       setUploadProgress(60);
 
+      // Wait a moment for S3 consistency
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
       // Step 3: Verify upload
       const verifyResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://wiqpao4gze.execute-api.us-east-1.amazonaws.com/Prod'}/upload/verify`, {
         method: 'POST',
@@ -162,7 +165,9 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
       });
 
       if (!verifyResponse.ok) {
-        throw new Error('Failed to verify upload');
+        const errorData = await verifyResponse.json().catch(() => ({}));
+        const errorMsg = errorData.error?.message || errorData.message || 'Failed to verify upload';
+        throw new Error(errorMsg);
       }
 
       setUploadProgress(80);
@@ -181,7 +186,9 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
       });
 
       if (!parseResponse.ok) {
-        throw new Error('Failed to parse statement');
+        const errorData = await parseResponse.json().catch(() => ({}));
+        const errorMsg = errorData.error?.message || errorData.message || 'Failed to parse statement';
+        throw new Error(errorMsg);
       }
 
       setUploadProgress(100);

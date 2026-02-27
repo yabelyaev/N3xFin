@@ -18,9 +18,14 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     request_id = context.request_id if hasattr(context, 'request_id') else str(uuid.uuid4())
     
     try:
+        # Log the incoming event for debugging
+        print(f'Verify upload event: {json.dumps(event)}')
+        
         # Extract user ID from authorizer context
         authorizer_context = event.get('requestContext', {}).get('authorizer', {})
         user_id = authorizer_context.get('claims', {}).get('sub')
+        
+        print(f'Extracted user_id: {user_id}')
         
         if not user_id:
             return {
@@ -41,6 +46,9 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         # Parse request body
         body = json.loads(event.get('body', '{}'))
         file_key = body.get('fileKey')
+        
+        print(f'Parsed body: {body}')
+        print(f'File key: {file_key}')
         
         if not file_key:
             return {
