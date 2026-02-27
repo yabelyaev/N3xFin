@@ -123,7 +123,10 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
         },
-        body: JSON.stringify({ filename: selectedFile.name }),
+        body: JSON.stringify({ 
+          filename: selectedFile.name,
+          fileSize: selectedFile.size 
+        }),
       });
 
       if (!urlResponse.ok) {
