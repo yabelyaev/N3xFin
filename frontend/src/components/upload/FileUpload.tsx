@@ -174,7 +174,10 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
         },
-        body: JSON.stringify({ key }),
+        body: JSON.stringify({ 
+          fileKey: key,
+          bucket: 'n3xfin-data-087305321237'
+        }),
       });
 
       if (!parseResponse.ok) {
