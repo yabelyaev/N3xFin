@@ -133,7 +133,7 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
         throw new Error('Failed to get upload URL');
       }
 
-      const { uploadUrl, key } = await urlResponse.json();
+      const { uploadUrl, fileKey } = await urlResponse.json();
       
       // Step 2: Upload file to S3
       setUploadProgress(30);
@@ -161,7 +161,7 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
         },
-        body: JSON.stringify({ fileKey: key }),
+        body: JSON.stringify({ fileKey }),
       });
 
       if (!verifyResponse.ok) {
@@ -180,7 +180,7 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
         },
         body: JSON.stringify({ 
-          fileKey: key,
+          fileKey,
           bucket: 'n3xfin-data-087305321237'
         }),
       });
@@ -196,7 +196,7 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
       setUploadSuccess(true);
 
       if (onUploadComplete) {
-        onUploadComplete(key);
+        onUploadComplete(fileKey);
       }
     } catch (error) {
       setIsUploading(false);
