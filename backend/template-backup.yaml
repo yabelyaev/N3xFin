@@ -294,43 +294,6 @@ Resources:
             Auth:
               Authorizer: NONE
 
-  DeleteAccountFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: n3xfin-delete-account
-      CodeUri: src/
-      Handler: auth.delete_account.lambda_handler
-      Timeout: 60
-      Policies:
-        - Statement:
-            - Effect: Allow
-              Action:
-                - cognito-idp:AdminDeleteUser
-              Resource: !GetAtt UserPool.Arn
-            - Effect: Allow
-              Action:
-                - dynamodb:Query
-                - dynamodb:DeleteItem
-                - dynamodb:BatchWriteItem
-              Resource:
-                - !GetAtt UsersTable.Arn
-                - !GetAtt TransactionsTable.Arn
-                - !GetAtt ReportsTable.Arn
-                - !GetAtt ConversationsTable.Arn
-            - Effect: Allow
-              Action:
-                - s3:ListBucket
-                - s3:DeleteObject
-              Resource:
-                - !GetAtt DataBucket.Arn
-                - !Sub '${DataBucket.Arn}/*'
-      Events:
-        DeleteAccountApi:
-          Type: Api
-          Properties:
-            Path: /auth/delete
-            Method: POST
-
   # Upload Lambda Functions
   GetUploadUrlFunction:
     Type: AWS::Serverless::Function
@@ -390,55 +353,6 @@ Resources:
             Path: /upload/files
             Method: GET
 
-  # Parser Lambda Functions
-  ParseStatementFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: n3xfin-parse-statement
-      CodeUri: src/
-      Handler: parser.parse_statement.lambda_handler
-      Timeout: 60
-      Policies:
-        - Statement:
-            - Effect: Allow
-              Action:
-                - s3:GetObject
-              Resource: !Sub '${DataBucket.Arn}/*'
-            - Effect: Allow
-              Action:
-                - dynamodb:PutItem
-                - dynamodb:BatchWriteItem
-              Resource: !GetAtt TransactionsTable.Arn
-      Events:
-        ParseStatementApi:
-          Type: Api
-          Properties:
-            Path: /parser/parse
-            Method: POST
-
-  # Categorization Lambda Functions
-  CategorizeTransactionsFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: n3xfin-categorize-transactions
-      CodeUri: src/
-      Handler: categorization.categorize_transactions.lambda_handler
-      Timeout: 60
-      Policies:
-        - Statement:
-            - Effect: Allow
-              Action:
-                - dynamodb:Query
-                - dynamodb:UpdateItem
-                - dynamodb:BatchWriteItem
-              Resource: !GetAtt TransactionsTable.Arn
-      Events:
-        CategorizeTransactionsApi:
-          Type: Api
-          Properties:
-            Path: /categorization/categorize
-            Method: POST
-
   # Analytics Lambda Functions
   GetAnalyticsFunction:
     Type: AWS::Serverless::Function
@@ -487,7 +401,7 @@ Resources:
     Properties:
       FunctionName: n3xfin-get-predictions
       CodeUri: src/
-      Handler: get_predictions.lambda_handler
+      Handler: prediction.get_predictions.lambda_handler
       Policies:
         - Statement:
             - Effect: Allow
@@ -508,7 +422,7 @@ Resources:
     Properties:
       FunctionName: n3xfin-get-alerts
       CodeUri: src/
-      Handler: get_alerts.lambda_handler
+      Handler: prediction.get_alerts.lambda_handler
       Policies:
         - Statement:
             - Effect: Allow
@@ -530,7 +444,7 @@ Resources:
     Properties:
       FunctionName: n3xfin-get-recommendations
       CodeUri: src/
-      Handler: get_recommendations.lambda_handler
+      Handler: recommendation.get_recommendations.lambda_handler
       Policies:
         - Statement:
             - Effect: Allow
@@ -552,7 +466,7 @@ Resources:
     Properties:
       FunctionName: n3xfin-generate-report
       CodeUri: src/
-      Handler: generate_report.lambda_handler
+      Handler: report.generate_report.lambda_handler
       Timeout: 60
       Policies:
         - Statement:
@@ -577,7 +491,7 @@ Resources:
     Properties:
       FunctionName: n3xfin-ask-question
       CodeUri: src/
-      Handler: ask_question.lambda_handler
+      Handler: conversation.ask_question.lambda_handler
       Timeout: 60
       Policies:
         - Statement:

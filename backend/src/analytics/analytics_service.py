@@ -303,11 +303,14 @@ class AnalyticsService:
         end_date: datetime
     ) -> List[Dict]:
         """Query transactions within a date range."""
+        # Use PK and SK as per table schema
+        # PK format: USER#{user_id}
+        # SK format: TXN#{date}#{transaction_id}
         response = self.transactions_table.query(
-            KeyConditionExpression=Key('userId').eq(user_id) & 
-                                 Key('date').between(
-                                     start_date.isoformat(),
-                                     end_date.isoformat()
+            KeyConditionExpression=Key('PK').eq(f'USER#{user_id}') & 
+                                 Key('SK').between(
+                                     f'TXN#{start_date.isoformat()}',
+                                     f'TXN#{end_date.isoformat()}~'  # ~ sorts after all dates
                                  )
         )
         return response.get('Items', [])

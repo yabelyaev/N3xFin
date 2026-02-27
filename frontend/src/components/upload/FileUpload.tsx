@@ -115,28 +115,75 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
     setValidationError(null);
 
     try {
-      // Simulate upload progress
-      const progressInterval = setInterval(() => {
-        setUploadProgress((prev) => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return 90;
-          }
-          return prev + 10;
-        });
-      }, 200);
+      // Step 1: Get upload URL from backend
+      setUploadProgress(10);
+      const urlResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://wiqpao4gze.execute-api.us-east-1.amazonaws.com/Prod'}/upload/url`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+        },
+        body: JSON.stringify({ filename: selectedFile.name }),
+      });
 
-      // TODO: Implement actual upload logic with API service
-      // For now, simulate upload
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      if (!urlResponse.ok) {
+        throw new Error('Failed to get upload URL');
+      }
+
+      const { uploadUrl, key } = await urlResponse.json();
       
-      clearInterval(progressInterval);
+      // Step 2: Upload file to S3
+      setUploadProgress(30);
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'PUT',
+        body: selectedFile,
+        headers: {
+          'Content-Type': selectedFile.type,
+        },
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('Failed to upload file to S3');
+      }
+
+      setUploadProgress(60);
+
+      // Step 3: Verify upload
+      const verifyResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://wiqpao4gze.execute-api.us-east-1.amazonaws.com/Prod'}/upload/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+        },
+        body: JSON.stringify({ key }),
+      });
+
+      if (!verifyResponse.ok) {
+        throw new Error('Failed to verify upload');
+      }
+
+      setUploadProgress(80);
+
+      // Step 4: Parse the statement
+      const parseResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://wiqpao4gze.execute-api.us-east-1.amazonaws.com/Prod'}/parser/parse`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+        },
+        body: JSON.stringify({ key }),
+      });
+
+      if (!parseResponse.ok) {
+        throw new Error('Failed to parse statement');
+      }
+
       setUploadProgress(100);
       setIsUploading(false);
       setUploadSuccess(true);
 
       if (onUploadComplete) {
-        onUploadComplete('mock-file-key');
+        onUploadComplete(key);
       }
     } catch (error) {
       setIsUploading(false);
