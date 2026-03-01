@@ -175,10 +175,10 @@ class PredictionService:
     ) -> List[Dict]:
         """Query transactions within a date range."""
         response = self.transactions_table.query(
-            KeyConditionExpression=Key('userId').eq(user_id) & 
-                                 Key('date').between(
-                                     start_date.isoformat(),
-                                     end_date.isoformat()
+            KeyConditionExpression=Key('PK').eq(f'USER#{user_id}') & 
+                                 Key('SK').between(
+                                     f'TRANSACTION#{start_date.isoformat()}',
+                                     f'TRANSACTION#{end_date.isoformat()}~'
                                  )
         )
         return response.get('Items', [])

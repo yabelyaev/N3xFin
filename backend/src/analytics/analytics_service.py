@@ -305,12 +305,12 @@ class AnalyticsService:
         """Query transactions within a date range."""
         # Use PK and SK as per table schema
         # PK format: USER#{user_id}
-        # SK format: TXN#{date}#{transaction_id}
+        # SK format: TRANSACTION#{date}#{transaction_id}
         response = self.transactions_table.query(
             KeyConditionExpression=Key('PK').eq(f'USER#{user_id}') & 
                                  Key('SK').between(
-                                     f'TXN#{start_date.isoformat()}',
-                                     f'TXN#{end_date.isoformat()}~'  # ~ sorts after all dates
+                                     f'TRANSACTION#{start_date.isoformat()}',
+                                     f'TRANSACTION#{end_date.isoformat()}~'  # ~ sorts after all dates
                                  )
         )
         return response.get('Items', [])

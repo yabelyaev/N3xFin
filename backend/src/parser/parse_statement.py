@@ -61,6 +61,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             body = json.loads(event.get('body', '{}'))
             file_key = body.get('fileKey')
             bucket = body.get('bucket')
+            use_llm = body.get('useLLM', False)  # Optional flag to force LLM parsing
             
             if not file_key or not bucket:
                 return {
@@ -107,20 +108,11 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if file_extension == 'csv':
             transactions = parser_service.parse_csv(bucket, file_key, user_id)
         elif file_extension == 'pdf':
-            return {
-                'statusCode': 501,
-                'headers': {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*'
-                },
-                'body': json.dumps({
-                    'error': {
-                        'code': 'NOT_IMPLEMENTED',
-                        'message': 'PDF parsing not yet implemented',
-                        'requestId': request_id
-                    }
-                })
-            }
+            # Use LLM parsing if explicitly requested or as fallback
+            if use_llm:
+                transactions = parser_service.parse_pdf_with_llm(bucket, file_key, user_id)
+            else:
+                transactions = parser_service.parse_pdf(bucket, file_key, user_id)
         else:
             return {
                 'statusCode': 400,

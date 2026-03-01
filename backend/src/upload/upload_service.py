@@ -145,14 +145,14 @@ class UploadService:
         Raises:
             ValidationError: If file not found or verification fails
         """
-        print(f'Verifying upload for file_key: {file_key}, bucket: {self.bucket}')
+        print(f'Verifying upload for file_key: {file_key}')
         try:
             response = self.s3.head_object(
                 Bucket=self.bucket,
                 Key=file_key
             )
             
-            print(f'S3 head_object response: {response}')
+            print(f'S3 head_object successful')
             
             return {
                 'fileKey': file_key,
@@ -171,8 +171,6 @@ class UploadService:
             )
         except Exception as e:
             print(f'Error verifying upload: {str(e)}')
-            import traceback
-            traceback.print_exc()
             raise ValidationError(
                 f'Failed to verify upload: {str(e)}',
                 {'fileKey': file_key, 'error': str(e)}

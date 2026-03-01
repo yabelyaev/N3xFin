@@ -6,7 +6,7 @@ import { apiService } from '../../services/api';
 import type { AnalyticsData } from '../../types/analytics';
 
 export const SpendingDashboard = () => {
-  const [timeRange, setTimeRange] = useState('30d');
+  const [timeRange, setTimeRange] = useState('1y');
   const [chartType, setChartType] = useState<'pie' | 'bar'>('bar');
   const [sortBy, setSortBy] = useState<'amount' | 'name' | 'percentage'>('amount');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -81,6 +81,10 @@ export const SpendingDashboard = () => {
         break;
       case '1y':
         date.setFullYear(date.getFullYear() - 1);
+        break;
+      case 'all':
+        // Go back 5 years for "all time"
+        date.setFullYear(date.getFullYear() - 5);
         break;
     }
     return date.toISOString().split('T')[0];

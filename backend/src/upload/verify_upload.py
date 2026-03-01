@@ -18,8 +18,8 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     request_id = context.request_id if hasattr(context, 'request_id') else str(uuid.uuid4())
     
     try:
-        # Log the incoming event for debugging
-        print(f'Verify upload event: {json.dumps(event)}')
+        # Log the incoming event for debugging (safely)
+        print(f'Verify upload called for user')
         
         # Extract user ID from authorizer context
         authorizer_context = event.get('requestContext', {}).get('authorizer', {})

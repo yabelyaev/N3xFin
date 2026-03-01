@@ -10,6 +10,7 @@ export const TimeRangeSelector = ({ value, onChange }: TimeRangeSelectorProps) =
     { label: 'Last 3 Months', value: '3m' },
     { label: 'Last 6 Months', value: '6m' },
     { label: 'Last Year', value: '1y' },
+    { label: 'All Time', value: 'all' },
   ];
 
   return (

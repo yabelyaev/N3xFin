@@ -22,6 +22,7 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [useLLM, setUseLLM] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const validateFile = (file: File): ValidationError | null => {
@@ -181,7 +182,8 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
         },
         body: JSON.stringify({ 
           fileKey,
-          bucket: 'n3xfin-data-087305321237'
+          bucket: 'n3xfin-data-087305321237',
+          useLLM: useLLM  // Include LLM flag
         }),
       });
 
@@ -326,21 +328,37 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
               )}
 
               {!isUploading && (
-                <div className="flex space-x-3 justify-center">
-                  <button
-                    type="button"
-                    onClick={handleUpload}
-                    className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    Upload
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleReset}
-                    className="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
-                  >
-                    Cancel
-                  </button>
+                <div className="space-y-3">
+                  {selectedFile.name.toLowerCase().endsWith('.pdf') && (
+                    <div className="flex items-center justify-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="use-llm"
+                        checked={useLLM}
+                        onChange={(e) => setUseLLM(e.target.checked)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="use-llm" className="text-sm text-gray-700">
+                        Use AI vision for parsing (recommended for complex PDFs)
+                      </label>
+                    </div>
+                  )}
+                  <div className="flex space-x-3 justify-center">
+                    <button
+                      type="button"
+                      onClick={handleUpload}
+                      className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      Upload
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleReset}
+                      className="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
