@@ -274,14 +274,17 @@ class ParserService:
                 )
 
             # Use LLM to parse the text
+            print(f'Sending {len(full_text)} characters of text to LLM for parsing...')
             transactions = self.parse_pdf_with_llm_text(full_text, user_id, s3_key)
 
             if not transactions:
+                print(f'LLM returned NO transactions for file: {s3_key}')
                 raise ProcessingError(
                     'No transactions found in PDF using LLM',
                     {'file': s3_key}
                 )
 
+            print(f'Successfully extracted {len(transactions)} transactions using LLM for file: {s3_key}')
             return transactions
 
         except ProcessingError:
@@ -353,6 +356,10 @@ class ParserService:
             # Parse response
             response_body = json.loads(response['body'].read())
             content = response_body['content'][0]['text']
+            
+            print(f'--- RAW LLM RESPONSE START ---')
+            print(content)
+            print(f'--- RAW LLM RESPONSE END ---')
 
             # Extract JSON from response
             content = content.strip()
@@ -362,10 +369,15 @@ class ParserService:
                 content = content.replace('```json', '').replace('```', '').strip()
 
             # Parse transactions
-            transactions_data = json.loads(content)
+            try:
+                transactions_data = json.loads(content)
+            except json.JSONDecodeError as jde:
+                print(f'Failed to parse LLM JSON: {str(jde)}')
+                print(f'Content was: {content}')
+                return []
 
             if not isinstance(transactions_data, list):
-                print(f'Warning: LLM returned non-list response')
+                print(f'Warning: LLM returned non-list response: {type(transactions_data)}')
                 return []
 
             # Convert to Transaction objects
