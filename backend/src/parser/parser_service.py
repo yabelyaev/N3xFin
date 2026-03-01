@@ -2,6 +2,7 @@
 import csv
 import hashlib
 import io
+import json
 import uuid
 import boto3
 from datetime import datetime, UTC
