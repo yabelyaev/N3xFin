@@ -154,7 +154,20 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return create_error_response(e, request_id, 400)
     
     except Exception as e:
-        print(f'Unexpected error in parse_statement: {str(e)}')
         import traceback
-        traceback.print_exc()
-        return create_error_response(e, request_id, 500)
+        error_details = traceback.format_exc()
+        print(f'Unexpected error in parse_statement: {str(e)}\n{error_details}')
+        return {
+            'statusCode': 500,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            },
+            'body': json.dumps({
+                'error': {
+                    'code': 'INTERNAL_ERROR',
+                    'message': f'An unexpected error occurred: {str(e)}',
+                    'details': {'requestId': request_id}
+                }
+            })
+        }

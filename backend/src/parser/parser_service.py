@@ -128,17 +128,19 @@ class ParserService:
             # Try parsing with regex first
             transactions = self._parse_pdf_text(full_text, user_id, s3_key)
 
-            if not transactions:
-                # Fallback to LLM-based parsing
-                print('Traditional PDF parsing found no transactions, trying LLM-based parsing...')
+            if not transactions or use_llm:
+                # Use LLM-based parsing if requested or if regex found nothing
+                method = "forced LLM" if use_llm else "regex fallback to LLM"
+                print(f'Attempting {method} parsing for PDF...')
                 try:
-                    transactions = self.parse_pdf_with_llm_text(full_text, user_id, s3_key)
+                    transactions = self.parse_pdf_with_llm(s3_bucket, s3_key, user_id)
                 except Exception as llm_error:
-                    print(f'LLM parsing also failed: {str(llm_error)}')
-                    raise ProcessingError(
-                        'No valid transactions found in PDF file using any method',
-                        {'file': s3_key}
-                    )
+                    print(f'LLM parsing failed: {str(llm_error)}')
+                    if not transactions: # Only raise if we have absolutely nothing
+                        raise ProcessingError(
+                            f'No transactions found in PDF file using any method. LLM error: {str(llm_error)}',
+                            {'file': s3_key}
+                        )
 
             return transactions
 
@@ -231,171 +233,170 @@ class ParserService:
                 continue
 
         return transactions
-        def parse_pdf_with_llm(self, s3_bucket: str, s3_key: str, user_id: str) -> List[Transaction]:
-            """
-            Parse PDF using multimodal LLM (text-based approach).
 
-            Args:
-                s3_bucket: S3 bucket name
-                s3_key: S3 object key
-                user_id: User ID
+    def parse_pdf_with_llm(self, s3_bucket: str, s3_key: str, user_id: str) -> List[Transaction]:
+        """
+        Parse PDF using multimodal LLM (text-based approach).
 
-            Returns:
-                List of parsed transactions
+        Args:
+            s3_bucket: S3 bucket name
+            s3_key: S3 object key
+            user_id: User ID
 
-            Raises:
-                ProcessingError: If parsing fails
-            """
-            try:
-                # Download PDF from S3
-                response = self.s3.get_object(Bucket=s3_bucket, Key=s3_key)
-                pdf_content = response['Body'].read()
+        Returns:
+            List of parsed transactions
 
-                # Extract text from PDF
-                if not self.PdfReader:
-                    raise ProcessingError(
-                        'PDF parsing library not available',
-                        {'file': s3_key}
-                    )
+        Raises:
+            ProcessingError: If parsing fails
+        """
+        try:
+            # Download PDF from S3
+            response = self.s3.get_object(Bucket=s3_bucket, Key=s3_key)
+            pdf_content = response['Body'].read()
 
-                pdf_reader = self.PdfReader(io.BytesIO(pdf_content))
-                full_text = ""
-
-                for page in pdf_reader.pages:
-                    full_text += page.extract_text() + "\n"
-
-                if not full_text.strip():
-                    raise ProcessingError(
-                        'No text found in PDF file',
-                        {'file': s3_key}
-                    )
-
-                # Use LLM to parse the text
-                transactions = self.parse_pdf_with_llm_text(full_text, user_id, s3_key)
-
-                if not transactions:
-                    raise ProcessingError(
-                        'No transactions found in PDF using LLM',
-                        {'file': s3_key}
-                    )
-
-                return transactions
-
-            except ProcessingError:
-                raise
-            except Exception as e:
+            # Extract text from PDF
+            if not self.PdfReader:
                 raise ProcessingError(
-                    f'Failed to parse PDF with LLM: {str(e)}',
-                    {'file': s3_key, 'error': str(e)}
+                    'PDF parsing library not available',
+                    {'file': s3_key}
                 )
 
-        def parse_pdf_with_llm_text(self, text: str, user_id: str, source_file: str) -> List[Transaction]:
-            """
-            Parse transactions from PDF text using Claude LLM.
+            pdf_reader = self.PdfReader(io.BytesIO(pdf_content))
+            full_text = ""
 
-            Args:
-                text: Extracted PDF text
-                user_id: User ID
-                source_file: Source file path
+            for page in pdf_reader.pages:
+                full_text += page.extract_text() + "\n"
 
-            Returns:
-                List of transactions
-            """
-            import json
-
-            prompt = f"""Analyze this bank statement text and extract all transactions.
-
-        Bank Statement Text:
-        {text[:10000]}  
-
-        For each transaction, provide:
-        - date: Transaction date in YYYY-MM-DD format (IMPORTANT: For dates like "10/18" or "11/01", interpret as MM/DD and use 2024 as the year unless the statement clearly shows a different year)
-        - description: Transaction description/merchant name
-        - amount: Transaction amount (negative for debits/expenses, positive for credits/deposits)
-        - balance: Account balance after transaction (if visible)
-
-        Return ONLY a valid JSON array with this exact structure:
-        [
-          {{
-        "date": "2024-01-15",
-        "description": "GROCERY STORE",
-        "amount": -45.67,
-        "balance": 1234.56
-          }}
-        ]
-
-        Rules:
-        - Extract ALL transactions visible in the text
-        - Use negative amounts for debits/withdrawals/expenses
-        - Use positive amounts for credits/deposits
-        - For dates in MM/DD format, use 2024 as the year
-        - If balance is not visible, omit the balance field
-        - Return empty array [] if no transactions found
-        - Return ONLY the JSON array, no other text"""
-
-            try:
-                # Call Claude 3 Sonnet
-                response = self.bedrock.invoke_model(
-                    modelId='anthropic.claude-3-sonnet-20240229-v1:0',
-                    body=json.dumps({
-                        "anthropic_version": "bedrock-2023-05-31",
-                        "max_tokens": 4096,
-                        "messages": [
-                            {
-                                "role": "user",
-                                "content": prompt
-                            }
-                        ]
-                    })
+            if not full_text.strip():
+                raise ProcessingError(
+                    'No text found in PDF file',
+                    {'file': s3_key}
                 )
 
-                # Parse response
-                response_body = json.loads(response['body'].read())
-                content = response_body['content'][0]['text']
+            # Use LLM to parse the text
+            transactions = self.parse_pdf_with_llm_text(full_text, user_id, s3_key)
 
-                # Extract JSON from response
-                content = content.strip()
-                if content.startswith('```'):
-                    lines = content.split('\n')
-                    content = '\n'.join(lines[1:-1]) if len(lines) > 2 else content
-                    content = content.replace('```json', '').replace('```', '').strip()
+            if not transactions:
+                raise ProcessingError(
+                    'No transactions found in PDF using LLM',
+                    {'file': s3_key}
+                )
 
-                # Parse transactions
-                transactions_data = json.loads(content)
+            return transactions
 
-                if not isinstance(transactions_data, list):
-                    print(f'Warning: LLM returned non-list response')
-                    return []
+        except ProcessingError:
+            raise
+        except Exception as e:
+            raise ProcessingError(
+                f'Failed to parse PDF with LLM: {str(e)}',
+                {'file': s3_key, 'error': str(e)}
+            )
 
-                # Convert to Transaction objects
-                transactions = []
-                for tx_data in transactions_data:
-                    try:
-                        transaction_date = datetime.fromisoformat(tx_data['date'])
-                        transaction_id = str(uuid.uuid4())
+    def parse_pdf_with_llm_text(self, text: str, user_id: str, source_file: str) -> List[Transaction]:
+        """
+        Parse transactions from PDF text using Claude LLM.
 
-                        transaction = Transaction(
-                            id=transaction_id,
-                            userId=user_id,
-                            date=transaction_date,
-                            description=tx_data['description'],
-                            amount=float(tx_data['amount']),
-                            balance=float(tx_data['balance']) if 'balance' in tx_data else None,
-                            sourceFile=source_file,
-                            rawData=json.dumps(tx_data),
-                            createdAt=datetime.now(UTC)
-                        )
-                        transactions.append(transaction)
+        Args:
+            text: Extracted PDF text
+            user_id: User ID
+            source_file: Source file path
 
-                    except Exception as e:
-                        print(f'Warning: Failed to parse LLM transaction: {str(e)}')
-                        continue
+        Returns:
+            List of transactions
+        """
+        prompt = f"""Analyze this bank statement text and extract all transactions.
 
-                return transactions
+    Bank Statement Text:
+    {text[:10000]}  
 
-            except Exception as e:
-                print(f'Warning: LLM extraction failed: {str(e)}')
+    For each transaction, provide:
+    - date: Transaction date in YYYY-MM-DD format (IMPORTANT: For dates like "10/18" or "11/01", interpret as MM/DD and use 2024 as the year unless the statement clearly shows a different year)
+    - description: Transaction description/merchant name
+    - amount: Transaction amount (negative for debits/expenses, positive for credits/deposits)
+    - balance: Account balance after transaction (if visible)
+
+    Return ONLY a valid JSON array with this exact structure:
+    [
+      {{
+    "date": "2024-01-15",
+    "description": "GROCERY STORE",
+    "amount": -45.67,
+    "balance": 1234.56
+      }}
+    ]
+
+    Rules:
+    - Extract ALL transactions visible in the text
+    - Use negative amounts for debits/withdrawals/expenses
+    - Use positive amounts for credits/deposits
+    - For dates in MM/DD format, use 2024 as the year
+    - If balance is not visible, omit the balance field
+    - Return empty array [] if no transactions found
+    - Return ONLY the JSON array, no other text"""
+
+        try:
+            # Call Claude 3 Sonnet
+            response = self.bedrock.invoke_model(
+                modelId='anthropic.claude-3-sonnet-20240229-v1:0',
+                body=json.dumps({
+                    "anthropic_version": "bedrock-2023-05-31",
+                    "max_tokens": 4096,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ]
+                })
+            )
+
+            # Parse response
+            response_body = json.loads(response['body'].read())
+            content = response_body['content'][0]['text']
+
+            # Extract JSON from response
+            content = content.strip()
+            if content.startswith('```'):
+                lines = content.split('\n')
+                content = '\n'.join(lines[1:-1]) if len(lines) > 2 else content
+                content = content.replace('```json', '').replace('```', '').strip()
+
+            # Parse transactions
+            transactions_data = json.loads(content)
+
+            if not isinstance(transactions_data, list):
+                print(f'Warning: LLM returned non-list response')
                 return []
+
+            # Convert to Transaction objects
+            transactions = []
+            for tx_data in transactions_data:
+                try:
+                    transaction_date = datetime.fromisoformat(tx_data['date'])
+                    transaction_id = str(uuid.uuid4())
+
+                    transaction = Transaction(
+                        id=transaction_id,
+                        userId=user_id,
+                        date=transaction_date,
+                        description=tx_data['description'],
+                        amount=float(tx_data['amount']),
+                        balance=float(tx_data['balance']) if 'balance' in tx_data else None,
+                        sourceFile=source_file,
+                        rawData=json.dumps(tx_data),
+                        createdAt=datetime.now(UTC)
+                    )
+                    transactions.append(transaction)
+
+                except Exception as e:
+                    print(f'Warning: Failed to parse LLM transaction: {str(e)}')
+                    continue
+
+            return transactions
+
+        except Exception as e:
+            print(f'Warning: LLM extraction failed: {str(e)}')
+            return []
 
 
 
