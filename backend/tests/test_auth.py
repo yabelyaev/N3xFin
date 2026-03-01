@@ -1,8 +1,8 @@
 """Unit tests for authentication service."""
 import pytest
 from botocore.exceptions import ClientError
-from src.auth.auth_service import AuthService
-from src.common.errors import ValidationError, AuthorizationError
+from auth.auth_service import AuthService
+from common.errors import ValidationError, AuthorizationError
 
 
 class TestPasswordValidation:

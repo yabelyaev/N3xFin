@@ -4,7 +4,7 @@ Analytics Service for N3xFin
 Provides spending aggregation, trend analysis, and anomaly detection.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from decimal import Decimal
 from typing import Dict, List, Optional, Tuple
 from collections import defaultdict
@@ -136,7 +136,7 @@ class AnalyticsService:
         """
         # Get historical data if not provided (last 90 days)
         if transactions is None:
-            end_date = datetime.utcnow()
+            end_date = datetime.now(UTC)
             start_date = end_date - timedelta(days=90)
             transactions = self._get_transactions_in_range(user_id, start_date, end_date)
         
@@ -209,7 +209,7 @@ class AnalyticsService:
             Trend analysis with direction and percentage change
         """
         # Compare last 30 days to previous 30 days
-        end_date = datetime.utcnow()
+        end_date = datetime.now(UTC)
         current_start = end_date - timedelta(days=30)
         previous_start = current_start - timedelta(days=30)
         
@@ -271,7 +271,7 @@ class AnalyticsService:
             'userId': user_id,
             'transactionId': transaction_id,
             'isLegitimate': is_legitimate,
-            'feedbackTimestamp': datetime.utcnow().isoformat(),
+            'feedbackTimestamp': datetime.now(UTC).isoformat(),
             'notes': notes or ''
         }
         
@@ -279,8 +279,8 @@ class AnalyticsService:
         try:
             self.transactions_table.update_item(
                 Key={
-                    'userId': user_id,
-                    'date': transaction_id.split('#')[0] if '#' in transaction_id else transaction_id
+                    'PK': f'USER#{user_id}',
+                    'SK': transaction_id if transaction_id.startswith('TRANSACTION#') else f'TRANSACTION#{transaction_id}'
                 },
                 UpdateExpression='SET anomalyFeedback = :feedback',
                 ExpressionAttributeValues={

@@ -4,7 +4,7 @@ Account Deletion Service for N3xFin
 Handles secure account deletion with 30-day grace period and complete data removal.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from typing import Dict, List
 import boto3
 from boto3.dynamodb.conditions import Key
@@ -52,6 +52,8 @@ class DeletionService:
         try:
             self.users_table.put_item(
                 Item={
+                    'PK': f'USER#{user_id}',
+                    'SK': 'PROFILE',
                     'userId': user_id,
                     'deletionRequested': True,
                     'deletionRequestedAt': datetime.utcnow().isoformat(),
@@ -83,7 +85,7 @@ class DeletionService:
         """
         try:
             # Check if deletion was requested
-            response = self.users_table.get_item(Key={'userId': user_id})
+            response = self.users_table.get_item(Key={'PK': f'USER#{user_id}', 'SK': 'PROFILE'})
             
             if 'Item' not in response:
                 raise NotFoundError(f"User {user_id} not found")
@@ -98,7 +100,7 @@ class DeletionService:
             
             # Cancel deletion
             self.users_table.update_item(
-                Key={'userId': user_id},
+                Key={'PK': f'USER#{user_id}', 'SK': 'PROFILE'},
                 UpdateExpression='SET #status = :status REMOVE deletionRequested, deletionRequestedAt, scheduledDeletionDate',
                 ExpressionAttributeNames={
                     '#status': 'status'
@@ -130,7 +132,7 @@ class DeletionService:
         """
         deletion_summary = {
             'userId': user_id,
-            'deletedAt': datetime.utcnow().isoformat(),
+            'deletedAt': datetime.now(UTC).isoformat(),
             'transactions': 0,
             'reports': 0,
             'conversations': 0,
@@ -143,7 +145,7 @@ class DeletionService:
             transactions = self._get_all_user_items(self.transactions_table, user_id)
             for txn in transactions:
                 self.transactions_table.delete_item(
-                    Key={'userId': user_id, 'date': txn['date']}
+                    Key={'PK': txn['PK'], 'SK': txn['SK']}
                 )
             deletion_summary['transactions'] = len(transactions)
         except Exception as e:
@@ -154,7 +156,7 @@ class DeletionService:
             reports = self._get_all_user_items(self.reports_table, user_id)
             for report in reports:
                 self.reports_table.delete_item(
-                    Key={'userId': user_id, 'month': report['month']}
+                    Key={'PK': report['PK'], 'SK': report['SK']}
                 )
             deletion_summary['reports'] = len(reports)
         except Exception as e:
@@ -165,7 +167,7 @@ class DeletionService:
             conversations = self._get_all_user_items(self.conversations_table, user_id)
             for conv in conversations:
                 self.conversations_table.delete_item(
-                    Key={'userId': user_id, 'timestamp': conv['timestamp']}
+                    Key={'PK': conv['PK'], 'SK': conv['SK']}
                 )
             deletion_summary['conversations'] = len(conversations)
         except Exception as e:
@@ -191,7 +193,7 @@ class DeletionService:
         
         # 6. Delete user record from users table
         try:
-            self.users_table.delete_item(Key={'userId': user_id})
+            self.users_table.delete_item(Key={'PK': f'USER#{user_id}', 'SK': 'PROFILE'})
         except Exception as e:
             print(f"Error deleting user record: {str(e)}")
         
@@ -268,14 +270,14 @@ class DeletionService:
         
         try:
             response = table.query(
-                KeyConditionExpression=Key('userId').eq(user_id)
+                KeyConditionExpression=Key('PK').eq(f'USER#{user_id}')
             )
             items.extend(response.get('Items', []))
             
             # Handle pagination
             while 'LastEvaluatedKey' in response:
                 response = table.query(
-                    KeyConditionExpression=Key('userId').eq(user_id),
+                    KeyConditionExpression=Key('PK').eq(f'USER#{user_id}'),
                     ExclusiveStartKey=response['LastEvaluatedKey']
                 )
                 items.extend(response.get('Items', []))

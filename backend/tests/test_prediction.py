@@ -4,16 +4,16 @@ Tests for Prediction Service
 
 import json
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from decimal import Decimal
 from moto import mock_aws
 import boto3
 from unittest.mock import patch, MagicMock
 
-from src.prediction.prediction_service import PredictionService
-from src.prediction.get_predictions import lambda_handler as predictions_handler
-from src.prediction.get_alerts import lambda_handler as alerts_handler
-from src.common.config import Config
+from prediction.prediction_service import PredictionService
+from prediction.get_predictions import lambda_handler as predictions_handler
+from prediction.get_alerts import lambda_handler as alerts_handler
+from common.config import Config
 
 
 @pytest.fixture
@@ -25,12 +25,12 @@ def prediction_service():
         table = dynamodb.create_table(
             TableName=Config.DYNAMODB_TABLE_TRANSACTIONS,
             KeySchema=[
-                {'AttributeName': 'userId', 'KeyType': 'HASH'},
-                {'AttributeName': 'date', 'KeyType': 'RANGE'}
+                {'AttributeName': 'PK', 'KeyType': 'HASH'},
+                {'AttributeName': 'SK', 'KeyType': 'RANGE'}
             ],
             AttributeDefinitions=[
-                {'AttributeName': 'userId', 'AttributeType': 'S'},
-                {'AttributeName': 'date', 'AttributeType': 'S'}
+                {'AttributeName': 'PK', 'AttributeType': 'S'},
+                {'AttributeName': 'SK', 'AttributeType': 'S'}
             ],
             BillingMode='PAY_PER_REQUEST'
         )
@@ -42,28 +42,36 @@ def prediction_service():
 def historical_transactions():
     """Create historical transaction data for predictions."""
     transactions = []
-    base_date = datetime.utcnow() - timedelta(days=90)
+    base_date = datetime.now(UTC) - timedelta(days=90)
     
     # Add consistent dining transactions
     for i in range(30):
+        txn_date = (base_date + timedelta(days=i * 3)).isoformat()
+        txn_id = f'dining-{i}'
         transactions.append({
+            'PK': f'USER#test-user',
+            'SK': f'TRANSACTION#{txn_date}#{txn_id}',
             'userId': 'test-user',
-            'date': (base_date + timedelta(days=i * 3)).isoformat(),
+            'date': txn_date,
             'description': 'Restaurant',
             'amount': Decimal('-50.00'),
             'category': 'Dining',
-            'id': f'dining-{i}'
+            'id': txn_id
         })
     
     # Add transportation transactions
     for i in range(20):
+        txn_date = (base_date + timedelta(days=i * 4)).isoformat()
+        txn_id = f'transport-{i}'
         transactions.append({
+            'PK': f'USER#test-user',
+            'SK': f'TRANSACTION#{txn_date}#{txn_id}',
             'userId': 'test-user',
-            'date': (base_date + timedelta(days=i * 4)).isoformat(),
+            'date': txn_date,
             'description': 'Gas',
             'amount': Decimal('-40.00'),
             'category': 'Transportation',
-            'id': f'transport-{i}'
+            'id': txn_id
         })
     
     return transactions
@@ -91,16 +99,20 @@ def test_predict_spending_insufficient_data(prediction_service):
     """Test prediction with insufficient historical data."""
     # Add only a few transactions
     table = prediction_service.transactions_table
-    base_date = datetime.utcnow() - timedelta(days=30)
+    base_date = datetime.now(UTC) - timedelta(days=30)
     
     for i in range(3):
+        txn_date = (base_date + timedelta(days=i * 10)).isoformat()
+        txn_id = f'shop-{i}'
         table.put_item(Item={
+            'PK': f'USER#test-user',
+            'SK': f'TRANSACTION#{txn_date}#{txn_id}',
             'userId': 'test-user',
-            'date': (base_date + timedelta(days=i * 10)).isoformat(),
+            'date': txn_date,
             'description': 'Shopping',
             'amount': Decimal('-100.00'),
             'category': 'Shopping',
-            'id': f'shop-{i}'
+            'id': txn_id
         })
     
     result = prediction_service.predict_spending('test-user', 'Shopping', horizon_days=30)
@@ -155,20 +167,24 @@ def test_generate_alerts_with_high_spending(mock_boto_client, prediction_service
     
     # Insert transactions with clear increasing trend
     table = prediction_service.transactions_table
-    base_date = datetime.utcnow() - timedelta(days=60)
+    base_date = datetime.now(UTC) - timedelta(days=60)
     
     # Create many transactions to ensure we have enough data
     # and a clear upward trend
     for i in range(40):
         # Gradually increasing amounts
         amount = 50 + (i * 3)  # Starts at $50, increases to $167
+        txn_date = (base_date + timedelta(days=i)).isoformat()
+        txn_id = f'txn-{i}'
         table.put_item(Item={
+            'PK': f'USER#test-user',
+            'SK': f'TRANSACTION#{txn_date}#{txn_id}',
             'userId': 'test-user',
-            'date': (base_date + timedelta(days=i)).isoformat(),
+            'date': txn_date,
             'description': 'Restaurant',
             'amount': Decimal(f'-{amount}.00'),
             'category': 'Dining',
-            'id': f'txn-{i}'
+            'id': txn_id
         })
     
     alerts = prediction_service.generate_alerts('test-user')

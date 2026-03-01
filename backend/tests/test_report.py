@@ -4,15 +4,15 @@ Unit tests for Report Service.
 
 import pytest
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from decimal import Decimal
 from moto import mock_aws
 import boto3
 
-from src.report.report_service import ReportService
-from src.report.generate_report import lambda_handler
-from src.common.errors import ValidationError
-from src.common.config import Config
+from report.report_service import ReportService
+from report.generate_report import lambda_handler
+from common.errors import ValidationError
+from common.config import Config
 
 
 @pytest.fixture
@@ -26,12 +26,12 @@ def report_service():
         transactions_table = dynamodb.create_table(
             TableName=Config.DYNAMODB_TABLE_TRANSACTIONS,
             KeySchema=[
-                {'AttributeName': 'userId', 'KeyType': 'HASH'},
-                {'AttributeName': 'date', 'KeyType': 'RANGE'}
+                {'AttributeName': 'PK', 'KeyType': 'HASH'},
+                {'AttributeName': 'SK', 'KeyType': 'RANGE'}
             ],
             AttributeDefinitions=[
-                {'AttributeName': 'userId', 'AttributeType': 'S'},
-                {'AttributeName': 'date', 'AttributeType': 'S'}
+                {'AttributeName': 'PK', 'AttributeType': 'S'},
+                {'AttributeName': 'SK', 'AttributeType': 'S'}
             ],
             BillingMode='PAY_PER_REQUEST'
         )
@@ -40,12 +40,12 @@ def report_service():
         reports_table = dynamodb.create_table(
             TableName=Config.DYNAMODB_TABLE_REPORTS,
             KeySchema=[
-                {'AttributeName': 'userId', 'KeyType': 'HASH'},
-                {'AttributeName': 'month', 'KeyType': 'RANGE'}
+                {'AttributeName': 'PK', 'KeyType': 'HASH'},
+                {'AttributeName': 'SK', 'KeyType': 'RANGE'}
             ],
             AttributeDefinitions=[
-                {'AttributeName': 'userId', 'AttributeType': 'S'},
-                {'AttributeName': 'month', 'AttributeType': 'S'}
+                {'AttributeName': 'PK', 'AttributeType': 'S'},
+                {'AttributeName': 'SK', 'AttributeType': 'S'}
             ],
             BillingMode='PAY_PER_REQUEST'
         )
@@ -55,13 +55,17 @@ def report_service():
 
 def create_transaction(user_id, date, amount, category='Dining', description='Test'):
     """Helper to create a transaction."""
+    txn_date = date.isoformat()
+    txn_id = f"txn-{txn_date}-{amount}"
     return {
+        'PK': f'USER#{user_id}',
+        'SK': f'TRANSACTION#{txn_date}#{txn_id}',
         'userId': user_id,
-        'date': date.isoformat(),
+        'date': txn_date,
         'amount': Decimal(str(amount)),
         'category': category,
         'description': description,
-        'transactionId': f"txn-{date.isoformat()}-{amount}"
+        'id': txn_id
     }
 
 
@@ -298,24 +302,24 @@ class TestGenerateReportLambda:
             dynamodb.create_table(
                 TableName=Config.DYNAMODB_TABLE_TRANSACTIONS,
                 KeySchema=[
-                    {'AttributeName': 'userId', 'KeyType': 'HASH'},
-                    {'AttributeName': 'date', 'KeyType': 'RANGE'}
+                    {'AttributeName': 'PK', 'KeyType': 'HASH'},
+                    {'AttributeName': 'SK', 'KeyType': 'RANGE'}
                 ],
                 AttributeDefinitions=[
-                    {'AttributeName': 'userId', 'AttributeType': 'S'},
-                    {'AttributeName': 'date', 'AttributeType': 'S'}
+                    {'AttributeName': 'PK', 'AttributeType': 'S'},
+                    {'AttributeName': 'SK', 'AttributeType': 'S'}
                 ],
                 BillingMode='PAY_PER_REQUEST'
             )
             dynamodb.create_table(
                 TableName=Config.DYNAMODB_TABLE_REPORTS,
                 KeySchema=[
-                    {'AttributeName': 'userId', 'KeyType': 'HASH'},
-                    {'AttributeName': 'month', 'KeyType': 'RANGE'}
+                    {'AttributeName': 'PK', 'KeyType': 'HASH'},
+                    {'AttributeName': 'SK', 'KeyType': 'RANGE'}
                 ],
                 AttributeDefinitions=[
-                    {'AttributeName': 'userId', 'AttributeType': 'S'},
-                    {'AttributeName': 'month', 'AttributeType': 'S'}
+                    {'AttributeName': 'PK', 'AttributeType': 'S'},
+                    {'AttributeName': 'SK', 'AttributeType': 'S'}
                 ],
                 BillingMode='PAY_PER_REQUEST'
             )
@@ -349,24 +353,24 @@ class TestGenerateReportLambda:
             dynamodb.create_table(
                 TableName=Config.DYNAMODB_TABLE_TRANSACTIONS,
                 KeySchema=[
-                    {'AttributeName': 'userId', 'KeyType': 'HASH'},
-                    {'AttributeName': 'date', 'KeyType': 'RANGE'}
+                    {'AttributeName': 'PK', 'KeyType': 'HASH'},
+                    {'AttributeName': 'SK', 'KeyType': 'RANGE'}
                 ],
                 AttributeDefinitions=[
-                    {'AttributeName': 'userId', 'AttributeType': 'S'},
-                    {'AttributeName': 'date', 'AttributeType': 'S'}
+                    {'AttributeName': 'PK', 'AttributeType': 'S'},
+                    {'AttributeName': 'SK', 'AttributeType': 'S'}
                 ],
                 BillingMode='PAY_PER_REQUEST'
             )
             dynamodb.create_table(
                 TableName=Config.DYNAMODB_TABLE_REPORTS,
                 KeySchema=[
-                    {'AttributeName': 'userId', 'KeyType': 'HASH'},
-                    {'AttributeName': 'month', 'KeyType': 'RANGE'}
+                    {'AttributeName': 'PK', 'KeyType': 'HASH'},
+                    {'AttributeName': 'SK', 'KeyType': 'RANGE'}
                 ],
                 AttributeDefinitions=[
-                    {'AttributeName': 'userId', 'AttributeType': 'S'},
-                    {'AttributeName': 'month', 'AttributeType': 'S'}
+                    {'AttributeName': 'PK', 'AttributeType': 'S'},
+                    {'AttributeName': 'SK', 'AttributeType': 'S'}
                 ],
                 BillingMode='PAY_PER_REQUEST'
             )
@@ -388,7 +392,7 @@ class TestGenerateReportLambda:
             body = json.loads(response['body'])
             assert body['userId'] == 'user123'
             # Should use current month
-            now = datetime.utcnow()
+            now = datetime.now(UTC)
             assert body['month'] == f"{now.year}-{now.month:02d}"
     
     def test_lambda_handler_unauthorized(self):
@@ -412,24 +416,24 @@ class TestGenerateReportLambda:
             dynamodb.create_table(
                 TableName=Config.DYNAMODB_TABLE_TRANSACTIONS,
                 KeySchema=[
-                    {'AttributeName': 'userId', 'KeyType': 'HASH'},
-                    {'AttributeName': 'date', 'KeyType': 'RANGE'}
+                    {'AttributeName': 'PK', 'KeyType': 'HASH'},
+                    {'AttributeName': 'SK', 'KeyType': 'RANGE'}
                 ],
                 AttributeDefinitions=[
-                    {'AttributeName': 'userId', 'AttributeType': 'S'},
-                    {'AttributeName': 'date', 'AttributeType': 'S'}
+                    {'AttributeName': 'PK', 'AttributeType': 'S'},
+                    {'AttributeName': 'SK', 'AttributeType': 'S'}
                 ],
                 BillingMode='PAY_PER_REQUEST'
             )
             dynamodb.create_table(
                 TableName=Config.DYNAMODB_TABLE_REPORTS,
                 KeySchema=[
-                    {'AttributeName': 'userId', 'KeyType': 'HASH'},
-                    {'AttributeName': 'month', 'KeyType': 'RANGE'}
+                    {'AttributeName': 'PK', 'KeyType': 'HASH'},
+                    {'AttributeName': 'SK', 'KeyType': 'RANGE'}
                 ],
                 AttributeDefinitions=[
-                    {'AttributeName': 'userId', 'AttributeType': 'S'},
-                    {'AttributeName': 'month', 'AttributeType': 'S'}
+                    {'AttributeName': 'PK', 'AttributeType': 'S'},
+                    {'AttributeName': 'SK', 'AttributeType': 'S'}
                 ],
                 BillingMode='PAY_PER_REQUEST'
             )

@@ -1,5 +1,4 @@
-"""Data models for N3xFin platform."""
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Optional, List
 from pydantic import BaseModel, Field
 
@@ -18,7 +17,7 @@ class Transaction(BaseModel):
     anomalyReason: Optional[str] = None
     sourceFile: str
     rawData: str
-    createdAt: datetime = Field(default_factory=datetime.utcnow)
+    createdAt: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class Category(BaseModel):

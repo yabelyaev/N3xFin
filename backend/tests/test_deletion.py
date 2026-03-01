@@ -4,15 +4,15 @@ Unit tests for Account Deletion Service.
 
 import pytest
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from decimal import Decimal
 from moto import mock_aws
 import boto3
 
-from src.auth.deletion_service import DeletionService
-from src.auth.delete_account import lambda_handler
-from src.common.errors import ValidationError, NotFoundError
-from src.common.config import Config
+from auth.deletion_service import DeletionService
+from auth.delete_account import lambda_handler
+from common.errors import ValidationError, NotFoundError
+from common.config import Config
 
 
 @pytest.fixture
@@ -26,10 +26,12 @@ def deletion_service():
         dynamodb.create_table(
             TableName=Config.DYNAMODB_TABLE_USERS,
             KeySchema=[
-                {'AttributeName': 'userId', 'KeyType': 'HASH'}
+                {'AttributeName': 'PK', 'KeyType': 'HASH'},
+                {'AttributeName': 'SK', 'KeyType': 'RANGE'}
             ],
             AttributeDefinitions=[
-                {'AttributeName': 'userId', 'AttributeType': 'S'}
+                {'AttributeName': 'PK', 'AttributeType': 'S'},
+                {'AttributeName': 'SK', 'AttributeType': 'S'}
             ],
             BillingMode='PAY_PER_REQUEST'
         )
@@ -38,12 +40,12 @@ def deletion_service():
         dynamodb.create_table(
             TableName=Config.DYNAMODB_TABLE_TRANSACTIONS,
             KeySchema=[
-                {'AttributeName': 'userId', 'KeyType': 'HASH'},
-                {'AttributeName': 'date', 'KeyType': 'RANGE'}
+                {'AttributeName': 'PK', 'KeyType': 'HASH'},
+                {'AttributeName': 'SK', 'KeyType': 'RANGE'}
             ],
             AttributeDefinitions=[
-                {'AttributeName': 'userId', 'AttributeType': 'S'},
-                {'AttributeName': 'date', 'AttributeType': 'S'}
+                {'AttributeName': 'PK', 'AttributeType': 'S'},
+                {'AttributeName': 'SK', 'AttributeType': 'S'}
             ],
             BillingMode='PAY_PER_REQUEST'
         )
@@ -52,12 +54,12 @@ def deletion_service():
         dynamodb.create_table(
             TableName=Config.DYNAMODB_TABLE_REPORTS,
             KeySchema=[
-                {'AttributeName': 'userId', 'KeyType': 'HASH'},
-                {'AttributeName': 'month', 'KeyType': 'RANGE'}
+                {'AttributeName': 'PK', 'KeyType': 'HASH'},
+                {'AttributeName': 'SK', 'KeyType': 'RANGE'}
             ],
             AttributeDefinitions=[
-                {'AttributeName': 'userId', 'AttributeType': 'S'},
-                {'AttributeName': 'month', 'AttributeType': 'S'}
+                {'AttributeName': 'PK', 'AttributeType': 'S'},
+                {'AttributeName': 'SK', 'AttributeType': 'S'}
             ],
             BillingMode='PAY_PER_REQUEST'
         )
@@ -66,12 +68,12 @@ def deletion_service():
         dynamodb.create_table(
             TableName=Config.DYNAMODB_TABLE_CONVERSATIONS,
             KeySchema=[
-                {'AttributeName': 'userId', 'KeyType': 'HASH'},
-                {'AttributeName': 'timestamp', 'KeyType': 'RANGE'}
+                {'AttributeName': 'PK', 'KeyType': 'HASH'},
+                {'AttributeName': 'SK', 'KeyType': 'RANGE'}
             ],
             AttributeDefinitions=[
-                {'AttributeName': 'userId', 'AttributeType': 'S'},
-                {'AttributeName': 'timestamp', 'AttributeType': 'S'}
+                {'AttributeName': 'PK', 'AttributeType': 'S'},
+                {'AttributeName': 'SK', 'AttributeType': 'S'}
             ],
             BillingMode='PAY_PER_REQUEST'
         )
@@ -87,17 +89,24 @@ def create_test_data(service, user_id):
     """Helper to create test data for a user."""
     # Add transactions
     for i in range(5):
+        txn_date = f"2024-01-{i+1:02d}"
+        txn_id = f"txn-{i+1}"
         service.transactions_table.put_item(Item={
+            'PK': f'USER#{user_id}',
+            'SK': f'TRANSACTION#{txn_date}#{txn_id}',
             'userId': user_id,
-            'date': f"2024-01-{i+1:02d}",
+            'date': txn_date,
             'amount': Decimal(str(-50.00 * (i + 1))),
             'description': f'Transaction {i+1}',
-            'category': 'Dining'
+            'category': 'Dining',
+            'id': txn_id
         })
     
     # Add reports
     for month in ['2024-01', '2024-02']:
         service.reports_table.put_item(Item={
+            'PK': f'USER#{user_id}',
+            'SK': f'REPORT#{month}',
             'userId': user_id,
             'month': month,
             'reportData': json.dumps({'totalSpending': 500.0})
@@ -105,9 +114,12 @@ def create_test_data(service, user_id):
     
     # Add conversations
     for i in range(3):
+        timestamp = f"2024-01-01T12:00:{i:02d}"
         service.conversations_table.put_item(Item={
+            'PK': f'USER#{user_id}',
+            'SK': f'CONVERSATION#{timestamp}',
             'userId': user_id,
-            'timestamp': f"2024-01-01T12:00:{i:02d}",
+            'timestamp': timestamp,
             'question': f'Question {i+1}',
             'answer': f'Answer {i+1}'
         })
@@ -133,17 +145,19 @@ class TestDeletionService:
         # For now, test the DynamoDB marking
         
         # Manually mark user for deletion (simulating successful request)
-        deletion_date = datetime.utcnow() + timedelta(days=30)
+        deletion_date = datetime.now(UTC) + timedelta(days=30)
         deletion_service.users_table.put_item(Item={
+            'PK': f'USER#{user_id}',
+            'SK': 'PROFILE',
             'userId': user_id,
             'deletionRequested': True,
-            'deletionRequestedAt': datetime.utcnow().isoformat(),
+            'deletionRequestedAt': datetime.now(UTC).isoformat(),
             'scheduledDeletionDate': deletion_date.isoformat(),
             'status': 'pending_deletion'
         })
         
         # Verify user is marked for deletion
-        response = deletion_service.users_table.get_item(Key={'userId': user_id})
+        response = deletion_service.users_table.get_item(Key={'PK': f'USER#{user_id}', 'SK': 'PROFILE'})
         assert 'Item' in response
         assert response['Item']['deletionRequested'] is True
         assert response['Item']['status'] == 'pending_deletion'
@@ -154,10 +168,12 @@ class TestDeletionService:
         
         # First, mark user for deletion
         deletion_service.users_table.put_item(Item={
+            'PK': f'USER#{user_id}',
+            'SK': 'PROFILE',
             'userId': user_id,
             'deletionRequested': True,
-            'deletionRequestedAt': datetime.utcnow().isoformat(),
-            'scheduledDeletionDate': (datetime.utcnow() + timedelta(days=30)).isoformat(),
+            'deletionRequestedAt': datetime.now(UTC).isoformat(),
+            'scheduledDeletionDate': (datetime.now(UTC) + timedelta(days=30)).isoformat(),
             'status': 'pending_deletion'
         })
         
@@ -168,7 +184,7 @@ class TestDeletionService:
         assert result['deletionCancelled'] is True
         
         # Verify deletion flags are removed
-        response = deletion_service.users_table.get_item(Key={'userId': user_id})
+        response = deletion_service.users_table.get_item(Key={'PK': f'USER#{user_id}', 'SK': 'PROFILE'})
         assert 'Item' in response
         assert 'deletionRequested' not in response['Item']
         assert response['Item']['status'] == 'active'
@@ -179,6 +195,8 @@ class TestDeletionService:
         
         # Create user without deletion request
         deletion_service.users_table.put_item(Item={
+            'PK': f'USER#{user_id}',
+            'SK': 'PROFILE',
             'userId': user_id,
             'status': 'active'
         })
@@ -212,22 +230,22 @@ class TestDeletionService:
         # Verify all data is deleted
         # Transactions
         txn_response = deletion_service.transactions_table.query(
-            KeyConditionExpression='userId = :uid',
-            ExpressionAttributeValues={':uid': user_id}
+            KeyConditionExpression='PK = :pk',
+            ExpressionAttributeValues={':pk': f'USER#{user_id}'}
         )
         assert len(txn_response.get('Items', [])) == 0
         
         # Reports
         report_response = deletion_service.reports_table.query(
-            KeyConditionExpression='userId = :uid',
-            ExpressionAttributeValues={':uid': user_id}
+            KeyConditionExpression='PK = :pk',
+            ExpressionAttributeValues={':pk': f'USER#{user_id}'}
         )
         assert len(report_response.get('Items', [])) == 0
         
         # Conversations
         conv_response = deletion_service.conversations_table.query(
-            KeyConditionExpression='userId = :uid',
-            ExpressionAttributeValues={':uid': user_id}
+            KeyConditionExpression='PK = :pk',
+            ExpressionAttributeValues={':pk': f'USER#{user_id}'}
         )
         assert len(conv_response.get('Items', [])) == 0
         
@@ -339,11 +357,16 @@ class TestDeletionService:
         
         # Create many transactions (to test pagination)
         for i in range(10):
+            txn_date = f"2024-01-{i+1:02d}T12:00:00"
+            txn_id = f"txn-{i+1}"
             deletion_service.transactions_table.put_item(Item={
+                'PK': f'USER#user123',
+                'SK': f'TRANSACTION#{txn_date}#{txn_id}',
                 'userId': user_id,
-                'date': f"2024-01-{i+1:02d}T12:00:00",
+                'date': txn_date,
                 'amount': Decimal('-50.00'),
-                'description': f'Transaction {i+1}'
+                'description': f'Transaction {i+1}',
+                'id': txn_id
             })
         
         items = deletion_service._get_all_user_items(
@@ -364,43 +387,49 @@ class TestDeleteAccountLambda:
             dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
             dynamodb.create_table(
                 TableName=Config.DYNAMODB_TABLE_USERS,
-                KeySchema=[{'AttributeName': 'userId', 'KeyType': 'HASH'}],
-                AttributeDefinitions=[{'AttributeName': 'userId', 'AttributeType': 'S'}],
+                KeySchema=[
+                    {'AttributeName': 'PK', 'KeyType': 'HASH'},
+                    {'AttributeName': 'SK', 'KeyType': 'RANGE'}
+                ],
+                AttributeDefinitions=[
+                    {'AttributeName': 'PK', 'AttributeType': 'S'},
+                    {'AttributeName': 'SK', 'AttributeType': 'S'}
+                ],
                 BillingMode='PAY_PER_REQUEST'
             )
             dynamodb.create_table(
                 TableName=Config.DYNAMODB_TABLE_TRANSACTIONS,
                 KeySchema=[
-                    {'AttributeName': 'userId', 'KeyType': 'HASH'},
-                    {'AttributeName': 'date', 'KeyType': 'RANGE'}
+                    {'AttributeName': 'PK', 'KeyType': 'HASH'},
+                    {'AttributeName': 'SK', 'KeyType': 'RANGE'}
                 ],
                 AttributeDefinitions=[
-                    {'AttributeName': 'userId', 'AttributeType': 'S'},
-                    {'AttributeName': 'date', 'AttributeType': 'S'}
+                    {'AttributeName': 'PK', 'AttributeType': 'S'},
+                    {'AttributeName': 'SK', 'AttributeType': 'S'}
                 ],
                 BillingMode='PAY_PER_REQUEST'
             )
             dynamodb.create_table(
                 TableName=Config.DYNAMODB_TABLE_REPORTS,
                 KeySchema=[
-                    {'AttributeName': 'userId', 'KeyType': 'HASH'},
-                    {'AttributeName': 'month', 'KeyType': 'RANGE'}
+                    {'AttributeName': 'PK', 'KeyType': 'HASH'},
+                    {'AttributeName': 'SK', 'KeyType': 'RANGE'}
                 ],
                 AttributeDefinitions=[
-                    {'AttributeName': 'userId', 'AttributeType': 'S'},
-                    {'AttributeName': 'month', 'AttributeType': 'S'}
+                    {'AttributeName': 'PK', 'AttributeType': 'S'},
+                    {'AttributeName': 'SK', 'AttributeType': 'S'}
                 ],
                 BillingMode='PAY_PER_REQUEST'
             )
             dynamodb.create_table(
                 TableName=Config.DYNAMODB_TABLE_CONVERSATIONS,
                 KeySchema=[
-                    {'AttributeName': 'userId', 'KeyType': 'HASH'},
-                    {'AttributeName': 'timestamp', 'KeyType': 'RANGE'}
+                    {'AttributeName': 'PK', 'KeyType': 'HASH'},
+                    {'AttributeName': 'SK', 'KeyType': 'RANGE'}
                 ],
                 AttributeDefinitions=[
-                    {'AttributeName': 'userId', 'AttributeType': 'S'},
-                    {'AttributeName': 'timestamp', 'AttributeType': 'S'}
+                    {'AttributeName': 'PK', 'AttributeType': 'S'},
+                    {'AttributeName': 'SK', 'AttributeType': 'S'}
                 ],
                 BillingMode='PAY_PER_REQUEST'
             )

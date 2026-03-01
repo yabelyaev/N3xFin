@@ -2,8 +2,8 @@
 import pytest
 import io
 from datetime import datetime
-from src.parser.parser_service import ParserService
-from src.common.errors import ProcessingError, ValidationError
+from parser.parser_service import ParserService
+from common.errors import ProcessingError, ValidationError
 
 
 class TestColumnMapping:

@@ -487,7 +487,7 @@ Resources:
     Properties:
       FunctionName: n3xfin-get-predictions
       CodeUri: src/
-      Handler: get_predictions.lambda_handler
+      Handler: prediction.get_predictions.lambda_handler
       Policies:
         - Statement:
             - Effect: Allow
@@ -508,7 +508,7 @@ Resources:
     Properties:
       FunctionName: n3xfin-get-alerts
       CodeUri: src/
-      Handler: get_alerts.lambda_handler
+      Handler: prediction.get_alerts.lambda_handler
       Policies:
         - Statement:
             - Effect: Allow
@@ -530,7 +530,7 @@ Resources:
     Properties:
       FunctionName: n3xfin-get-recommendations
       CodeUri: src/
-      Handler: get_recommendations.lambda_handler
+      Handler: recommendation.get_recommendations.lambda_handler
       Policies:
         - Statement:
             - Effect: Allow
@@ -552,7 +552,7 @@ Resources:
     Properties:
       FunctionName: n3xfin-generate-report
       CodeUri: src/
-      Handler: generate_report.lambda_handler
+      Handler: report.generate_report.lambda_handler
       Timeout: 60
       Policies:
         - Statement:
@@ -577,7 +577,7 @@ Resources:
     Properties:
       FunctionName: n3xfin-ask-question
       CodeUri: src/
-      Handler: ask_question.lambda_handler
+      Handler: conversation.ask_question.lambda_handler
       Timeout: 60
       Policies:
         - Statement:

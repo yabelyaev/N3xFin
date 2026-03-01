@@ -4,15 +4,15 @@ Tests for Recommendation Service
 
 import json
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from decimal import Decimal
 from moto import mock_aws
 import boto3
 from unittest.mock import patch, MagicMock
 
-from src.recommendation.recommendation_service import RecommendationService
-from src.recommendation.get_recommendations import lambda_handler
-from src.common.config import Config
+from recommendation.recommendation_service import RecommendationService
+from recommendation.get_recommendations import lambda_handler
+from common.config import Config
 
 
 @pytest.fixture
@@ -24,12 +24,12 @@ def recommendation_service():
         table = dynamodb.create_table(
             TableName=Config.DYNAMODB_TABLE_TRANSACTIONS,
             KeySchema=[
-                {'AttributeName': 'userId', 'KeyType': 'HASH'},
-                {'AttributeName': 'date', 'KeyType': 'RANGE'}
+                {'AttributeName': 'PK', 'KeyType': 'HASH'},
+                {'AttributeName': 'SK', 'KeyType': 'RANGE'}
             ],
             AttributeDefinitions=[
-                {'AttributeName': 'userId', 'AttributeType': 'S'},
-                {'AttributeName': 'date', 'AttributeType': 'S'}
+                {'AttributeName': 'PK', 'AttributeType': 'S'},
+                {'AttributeName': 'SK', 'AttributeType': 'S'}
             ],
             BillingMode='PAY_PER_REQUEST'
         )
@@ -41,39 +41,51 @@ def recommendation_service():
 def sample_transactions():
     """Create sample transaction data."""
     transactions = []
-    base_date = datetime.utcnow() - timedelta(days=25)
+    base_date = datetime.now(UTC) - timedelta(days=25)
     
     # High dining spending
     for i in range(15):
+        txn_date = (base_date + timedelta(days=i)).isoformat()
+        txn_id = f'dining-{i}'
         transactions.append({
+            'PK': f'USER#test-user',
+            'SK': f'TRANSACTION#{txn_date}#{txn_id}',
             'userId': 'test-user',
-            'date': (base_date + timedelta(days=i)).isoformat(),
+            'date': txn_date,
             'description': 'Restaurant',
             'amount': Decimal('-80.00'),
             'category': 'Dining',
-            'id': f'dining-{i}'
+            'id': txn_id
         })
     
     # Moderate transportation
     for i in range(10):
+        txn_date = (base_date + timedelta(days=i * 2)).isoformat()
+        txn_id = f'transport-{i}'
         transactions.append({
+            'PK': f'USER#test-user',
+            'SK': f'TRANSACTION#{txn_date}#{txn_id}',
             'userId': 'test-user',
-            'date': (base_date + timedelta(days=i * 2)).isoformat(),
+            'date': txn_date,
             'description': 'Gas',
             'amount': Decimal('-50.00'),
             'category': 'Transportation',
-            'id': f'transport-{i}'
+            'id': txn_id
         })
     
     # Lower shopping
     for i in range(5):
+        txn_date = (base_date + timedelta(days=i * 4)).isoformat()
+        txn_id = f'shop-{i}'
         transactions.append({
+            'PK': f'USER#test-user',
+            'SK': f'TRANSACTION#{txn_date}#{txn_id}',
             'userId': 'test-user',
-            'date': (base_date + timedelta(days=i * 4)).isoformat(),
+            'date': txn_date,
             'description': 'Store',
             'amount': Decimal('-100.00'),
             'category': 'Shopping',
-            'id': f'shop-{i}'
+            'id': txn_id
         })
     
     return transactions
@@ -147,16 +159,20 @@ def test_generate_recommendations_insufficient_data(recommendation_service):
     """Test recommendations with insufficient data."""
     # Add only a few transactions
     table = recommendation_service.transactions_table
-    base_date = datetime.utcnow() - timedelta(days=10)
+    base_date = datetime.now(UTC) - timedelta(days=10)
     
     for i in range(3):
+        txn_date = (base_date + timedelta(days=i)).isoformat()
+        txn_id = f'txn-{i}'
         table.put_item(Item={
+            'PK': f'USER#test-user',
+            'SK': f'TRANSACTION#{txn_date}#{txn_id}',
             'userId': 'test-user',
-            'date': (base_date + timedelta(days=i)).isoformat(),
+            'date': txn_date,
             'description': 'Test',
             'amount': Decimal('-50.00'),
             'category': 'Dining',
-            'id': f'txn-{i}'
+            'id': txn_id
         })
     
     recommendations = recommendation_service.generate_recommendations('test-user')
@@ -272,18 +288,23 @@ def test_analyze_category_spending(recommendation_service, sample_transactions):
 
 def test_analyze_category_spending_excludes_income(recommendation_service):
     """Test that income is excluded from spending analysis."""
+    now_iso = datetime.now(UTC).isoformat()
     transactions = [
         {
+            'PK': 'USER#test-user',
+            'SK': f'TRANSACTION#{now_iso}#income-1',
             'userId': 'test-user',
-            'date': datetime.utcnow().isoformat(),
+            'date': now_iso,
             'description': 'Salary',
             'amount': Decimal('3000.00'),  # Positive (income)
             'category': 'Income',
             'id': 'income-1'
         },
         {
+            'PK': 'USER#test-user',
+            'SK': f'TRANSACTION#{now_iso}#dining-1',
             'userId': 'test-user',
-            'date': datetime.utcnow().isoformat(),
+            'date': now_iso,
             'description': 'Restaurant',
             'amount': Decimal('-50.00'),  # Negative (expense)
             'category': 'Dining',

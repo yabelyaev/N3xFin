@@ -4,7 +4,7 @@ Conversation Service for N3xFin
 Handles natural language Q&A about user finances using AI.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from decimal import Decimal
 from typing import Dict, List, Optional
 import boto3
@@ -116,17 +116,17 @@ class ConversationService:
     def _detect_time_range(self, question: str) -> Dict:
         """Detect time range from question keywords."""
         question_lower = question.lower()
-        end_date = datetime.utcnow()
+        end_date = datetime.now(UTC)
         
         # Check for specific time periods
         if 'today' in question_lower:
-            start_date = datetime(end_date.year, end_date.month, end_date.day)
+            start_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
             description = 'today'
         elif 'this week' in question_lower or 'week' in question_lower:
             start_date = end_date - timedelta(days=7)
             description = 'this week'
         elif 'this month' in question_lower or 'month' in question_lower:
-            start_date = datetime(end_date.year, end_date.month, 1)
+            start_date = end_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
             description = 'this month'
         elif 'last month' in question_lower:
             # Previous month
@@ -312,7 +312,7 @@ Please provide a clear, concise answer based on the financial data provided. If 
         """Get recent conversation history for context."""
         try:
             response = self.conversations_table.query(
-                KeyConditionExpression=Key('userId').eq(user_id),
+                KeyConditionExpression=Key('PK').eq(f'USER#{user_id}') & Key('SK').begins_with('CONVERSATION#'),
                 ScanIndexForward=False,  # Most recent first
                 Limit=Config.MAX_CONVERSATION_HISTORY
             )
@@ -345,10 +345,12 @@ Please provide a clear, concise answer based on the financial data provided. If 
     ):
         """Store conversation in DynamoDB."""
         try:
-            timestamp = datetime.utcnow().isoformat()
+            timestamp = datetime.now(UTC).isoformat()
             
             self.conversations_table.put_item(
                 Item={
+                    'PK': f'USER#{user_id}',
+                    'SK': f'CONVERSATION#{timestamp}',
                     'userId': user_id,
                     'timestamp': timestamp,
                     'question': question,

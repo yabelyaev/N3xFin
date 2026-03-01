@@ -4,15 +4,15 @@ Tests for Analytics Service
 
 import json
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from decimal import Decimal
 from moto import mock_aws
 import boto3
 
-from src.analytics.analytics_service import AnalyticsService
-from src.analytics.get_analytics import lambda_handler
-from src.common.config import Config
-from src.common.errors import ValidationError
+from analytics.analytics_service import AnalyticsService
+from analytics.get_analytics import lambda_handler
+from common.config import Config
+from common.errors import ValidationError
 
 
 @pytest.fixture
@@ -24,12 +24,12 @@ def analytics_service():
         table = dynamodb.create_table(
             TableName=Config.DYNAMODB_TABLE_TRANSACTIONS,
             KeySchema=[
-                {'AttributeName': 'userId', 'KeyType': 'HASH'},
-                {'AttributeName': 'date', 'KeyType': 'RANGE'}
+                {'AttributeName': 'PK', 'KeyType': 'HASH'},
+                {'AttributeName': 'SK', 'KeyType': 'RANGE'}
             ],
             AttributeDefinitions=[
-                {'AttributeName': 'userId', 'AttributeType': 'S'},
-                {'AttributeName': 'date', 'AttributeType': 'S'}
+                {'AttributeName': 'PK', 'AttributeType': 'S'},
+                {'AttributeName': 'SK', 'AttributeType': 'S'}
             ],
             BillingMode='PAY_PER_REQUEST'
         )
@@ -60,13 +60,16 @@ def sample_transactions():
     
     for category, amount, day_offset in txn_data:
         txn_date = base_date + timedelta(days=day_offset)
+        txn_id = f'txn-{len(transactions)}'
         transactions.append({
+            'PK': f'USER#test-user',
+            'SK': f'TRANSACTION#{txn_date.isoformat()}#{txn_id}',
             'userId': 'test-user',
             'date': txn_date.isoformat(),
             'description': f'{category} transaction',
             'amount': Decimal(str(amount)),
             'category': category,
-            'id': f'txn-{len(transactions)}'
+            'id': txn_id
         })
     
     return transactions
@@ -221,13 +224,17 @@ def test_detect_anomalies_insufficient_data(analytics_service):
     # Only add a few transactions
     table = analytics_service.transactions_table
     for i in range(3):
+        txn_date = datetime(2024, 1, i+1).isoformat()
+        txn_id = f'txn-{i}'
         table.put_item(Item={
+            'PK': f'USER#test-user',
+            'SK': f'TRANSACTION#{txn_date}#{txn_id}',
             'userId': 'test-user',
-            'date': datetime(2024, 1, i+1).isoformat(),
+            'date': txn_date,
             'description': 'Test',
             'amount': Decimal('-50.00'),
             'category': 'Dining',
-            'id': f'txn-{i}'
+            'id': txn_id
         })
     
     result = analytics_service.detect_anomalies('test-user')
@@ -241,27 +248,35 @@ def test_calculate_trends_increasing(analytics_service):
     table = analytics_service.transactions_table
     
     # Previous period: lower spending
-    prev_date = datetime.utcnow() - timedelta(days=45)
+    prev_date = datetime.now(UTC) - timedelta(days=45)
     for i in range(5):
+        txn_date = (prev_date + timedelta(days=i)).isoformat()
+        txn_id = f'prev-{i}'
         table.put_item(Item={
+            'PK': f'USER#test-user',
+            'SK': f'TRANSACTION#{txn_date}#{txn_id}',
             'userId': 'test-user',
-            'date': (prev_date + timedelta(days=i)).isoformat(),
+            'date': txn_date,
             'description': 'Test',
             'amount': Decimal('-50.00'),
             'category': 'Dining',
-            'id': f'prev-{i}'
+            'id': txn_id
         })
     
     # Current period: higher spending
-    curr_date = datetime.utcnow() - timedelta(days=15)
+    curr_date = datetime.now(UTC) - timedelta(days=15)
     for i in range(5):
+        txn_date = (curr_date + timedelta(days=i)).isoformat()
+        txn_id = f'curr-{i}'
         table.put_item(Item={
+            'PK': f'USER#test-user',
+            'SK': f'TRANSACTION#{txn_date}#{txn_id}',
             'userId': 'test-user',
-            'date': (curr_date + timedelta(days=i)).isoformat(),
+            'date': txn_date,
             'description': 'Test',
             'amount': Decimal('-100.00'),
             'category': 'Dining',
-            'id': f'curr-{i}'
+            'id': txn_id
         })
     
     result = analytics_service.calculate_trends('test-user', 'Dining')
@@ -276,26 +291,34 @@ def test_calculate_trends_stable(analytics_service):
     table = analytics_service.transactions_table
     
     # Both periods: similar spending
-    prev_date = datetime.utcnow() - timedelta(days=45)
+    prev_date = datetime.now(UTC) - timedelta(days=45)
     for i in range(5):
+        txn_date = (prev_date + timedelta(days=i)).isoformat()
+        txn_id = f'prev-{i}'
         table.put_item(Item={
+            'PK': f'USER#test-user',
+            'SK': f'TRANSACTION#{txn_date}#{txn_id}',
             'userId': 'test-user',
-            'date': (prev_date + timedelta(days=i)).isoformat(),
+            'date': txn_date,
             'description': 'Test',
             'amount': Decimal('-50.00'),
             'category': 'Dining',
-            'id': f'prev-{i}'
+            'id': txn_id
         })
     
-    curr_date = datetime.utcnow() - timedelta(days=15)
+    curr_date = datetime.now(UTC) - timedelta(days=15)
     for i in range(5):
+        txn_date = (curr_date + timedelta(days=i)).isoformat()
+        txn_id = f'curr-{i}'
         table.put_item(Item={
+            'PK': f'USER#test-user',
+            'SK': f'TRANSACTION#{txn_date}#{txn_id}',
             'userId': 'test-user',
-            'date': (curr_date + timedelta(days=i)).isoformat(),
+            'date': txn_date,
             'description': 'Test',
             'amount': Decimal('-51.00'),  # Very similar
             'category': 'Dining',
-            'id': f'curr-{i}'
+            'id': txn_id
         })
     
     result = analytics_service.calculate_trends('test-user', 'Dining')
@@ -393,25 +416,28 @@ def test_store_anomaly_feedback(analytics_service):
     # Create a transaction first
     table = analytics_service.transactions_table
     txn_date = datetime(2024, 1, 1).isoformat()
+    txn_id = 'txn-1'
     table.put_item(Item={
+        'PK': f'USER#test-user',
+        'SK': f'TRANSACTION#{txn_date}#{txn_id}',
         'userId': 'test-user',
         'date': txn_date,
         'description': 'Test transaction',
         'amount': Decimal('-100.00'),
         'category': 'Dining',
-        'id': 'txn-1'
+        'id': txn_id
     })
     
-    # Store feedback
+    # Store feedback - use full SK
     result = analytics_service.store_anomaly_feedback(
         'test-user',
-        txn_date,
+        f'TRANSACTION#{txn_date}#{txn_id}',
         is_legitimate=True,
         notes='This was a planned expense'
     )
     
     assert result['success'] is True
-    assert result['transactionId'] == txn_date
+    assert result['transactionId'] == f'TRANSACTION#{txn_date}#{txn_id}'
     assert 'feedback' in result
     assert result['feedback']['isLegitimate'] is True
     assert result['feedback']['notes'] == 'This was a planned expense'
@@ -419,18 +445,21 @@ def test_store_anomaly_feedback(analytics_service):
 
 def test_submit_anomaly_feedback_lambda(analytics_service):
     """Test anomaly feedback Lambda handler."""
-    from src.analytics.submit_anomaly_feedback import lambda_handler as feedback_handler
+    from analytics.submit_anomaly_feedback import lambda_handler as feedback_handler
     
     # Create a transaction first
     table = analytics_service.transactions_table
     txn_date = datetime(2024, 1, 1).isoformat()
+    txn_id = 'txn-1'
     table.put_item(Item={
+        'PK': f'USER#test-user',
+        'SK': f'TRANSACTION#{txn_date}#{txn_id}',
         'userId': 'test-user',
         'date': txn_date,
         'description': 'Test transaction',
         'amount': Decimal('-100.00'),
         'category': 'Dining',
-        'id': 'txn-1'
+        'id': txn_id
     })
     
     event = {
@@ -442,7 +471,7 @@ def test_submit_anomaly_feedback_lambda(analytics_service):
             }
         },
         'body': json.dumps({
-            'transactionId': txn_date,
+            'transactionId': f'TRANSACTION#{txn_date}#{txn_id}',
             'isLegitimate': False,
             'notes': 'Fraudulent charge'
         })

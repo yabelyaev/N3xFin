@@ -4,7 +4,7 @@ Recommendation Service for N3xFin
 Generates personalized savings recommendations based on spending patterns.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from decimal import Decimal
 from typing import Dict, List, Optional
 import boto3
@@ -36,7 +36,7 @@ class RecommendationService:
             List of recommendations ranked by potential savings
         """
         # Get spending data for last 30 days
-        end_date = datetime.utcnow()
+        end_date = datetime.now(UTC)
         start_date = end_date - timedelta(days=30)
         
         transactions = self._get_transactions_in_range(user_id, start_date, end_date)
@@ -217,7 +217,7 @@ Focus on the highest spending categories and provide practical, achievable recom
             
             # Add unique IDs
             for i, rec in enumerate(recommendations):
-                rec['id'] = f"rec-{datetime.utcnow().timestamp()}-{i}"
+                rec['id'] = f"rec-{datetime.now(UTC).timestamp()}-{i}"
             
             return recommendations if isinstance(recommendations, list) else [recommendations]
         

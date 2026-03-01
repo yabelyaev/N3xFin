@@ -36,13 +36,25 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 })
             }
         
-        # Get query parameters
+        # Get parameters from either body or query params
         query_params = event.get('queryStringParameters') or {}
-        limit = int(query_params.get('limit', 100))
+        body = {}
+        try:
+            if event.get('body'):
+                body = json.loads(event['body'])
+        except Exception:
+            pass
+            
+        transaction_ids = body.get('transactionIds')
+        limit = int(body.get('limit') or query_params.get('limit', 100))
         
         # Categorize transactions
         categorization_service = CategorizationService()
-        result = categorization_service.categorize_user_transactions(user_id, limit)
+        
+        if transaction_ids:
+            result = categorization_service.categorize_transactions_by_id(user_id, transaction_ids)
+        else:
+            result = categorization_service.categorize_user_transactions(user_id, limit)
         
         return {
             'statusCode': 200,

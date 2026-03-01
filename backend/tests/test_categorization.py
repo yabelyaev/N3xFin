@@ -1,9 +1,9 @@
 """Unit tests for categorization service."""
 import pytest
 import json
-from datetime import datetime
-from src.categorization.categorization_service import CategorizationService
-from src.common.models import Transaction, CATEGORIES
+from datetime import datetime, UTC
+from categorization.categorization_service import CategorizationService
+from common.models import Transaction, CATEGORIES
 
 
 class TestPromptBuilding:
@@ -20,7 +20,7 @@ class TestPromptBuilding:
             amount=-5.50,
             sourceFile='test.csv',
             rawData='{}',
-            createdAt=datetime.utcnow()
+            createdAt=datetime.now(UTC)
         )
         
         prompt = service._build_categorization_prompt([transaction])
@@ -42,7 +42,7 @@ class TestPromptBuilding:
                 amount=-5.50,
                 sourceFile='test.csv',
                 rawData='{}',
-                createdAt=datetime.utcnow()
+                createdAt=datetime.now(UTC)
             ),
             Transaction(
                 id='tx-2',
@@ -52,7 +52,7 @@ class TestPromptBuilding:
                 amount=2000.00,
                 sourceFile='test.csv',
                 rawData='{}',
-                createdAt=datetime.utcnow()
+                createdAt=datetime.now(UTC)
             )
         ]
         
@@ -76,12 +76,12 @@ class TestResponseParsing:
         ])
         
         transactions = [
-            Transaction(id='tx-1', userId='user-123', date=datetime.utcnow(), 
+            Transaction(id='tx-1', userId='user-123', date=datetime.now(UTC), 
                        description='Coffee', amount=-5.50, sourceFile='test.csv', 
-                       rawData='{}', createdAt=datetime.utcnow()),
-            Transaction(id='tx-2', userId='user-123', date=datetime.utcnow(), 
+                       rawData='{}', createdAt=datetime.now(UTC)),
+            Transaction(id='tx-2', userId='user-123', date=datetime.now(UTC), 
                        description='Salary', amount=2000.00, sourceFile='test.csv', 
-                       rawData='{}', createdAt=datetime.utcnow())
+                       rawData='{}', createdAt=datetime.now(UTC))
         ]
         
         results = service._parse_categorization_response(response_text, transactions)
@@ -101,9 +101,9 @@ class TestResponseParsing:
 ```"""
         
         transactions = [
-            Transaction(id='tx-1', userId='user-123', date=datetime.utcnow(), 
+            Transaction(id='tx-1', userId='user-123', date=datetime.now(UTC), 
                        description='Coffee', amount=-5.50, sourceFile='test.csv', 
-                       rawData='{}', createdAt=datetime.utcnow())
+                       rawData='{}', createdAt=datetime.now(UTC))
         ]
         
         results = service._parse_categorization_response(response_text, transactions)
@@ -119,9 +119,9 @@ class TestResponseParsing:
         ])
         
         transactions = [
-            Transaction(id='tx-1', userId='user-123', date=datetime.utcnow(), 
+            Transaction(id='tx-1', userId='user-123', date=datetime.now(UTC), 
                        description='Test', amount=-10.00, sourceFile='test.csv', 
-                       rawData='{}', createdAt=datetime.utcnow())
+                       rawData='{}', createdAt=datetime.now(UTC))
         ]
         
         results = service._parse_categorization_response(response_text, transactions)
@@ -137,9 +137,9 @@ class TestResponseParsing:
         ])
         
         transactions = [
-            Transaction(id='tx-1', userId='user-123', date=datetime.utcnow(), 
+            Transaction(id='tx-1', userId='user-123', date=datetime.now(UTC), 
                        description='Test', amount=-10.00, sourceFile='test.csv', 
-                       rawData='{}', createdAt=datetime.utcnow())
+                       rawData='{}', createdAt=datetime.now(UTC))
         ]
         
         results = service._parse_categorization_response(response_text, transactions)
@@ -153,9 +153,9 @@ class TestResponseParsing:
         response_text = "This is not valid JSON"
         
         transactions = [
-            Transaction(id='tx-1', userId='user-123', date=datetime.utcnow(), 
+            Transaction(id='tx-1', userId='user-123', date=datetime.now(UTC), 
                        description='Test', amount=-10.00, sourceFile='test.csv', 
-                       rawData='{}', createdAt=datetime.utcnow())
+                       rawData='{}', createdAt=datetime.now(UTC))
         ]
         
         results = service._parse_categorization_response(response_text, transactions)
@@ -173,12 +173,12 @@ class TestResponseParsing:
         ])
         
         transactions = [
-            Transaction(id='tx-1', userId='user-123', date=datetime.utcnow(), 
+            Transaction(id='tx-1', userId='user-123', date=datetime.now(UTC), 
                        description='Coffee', amount=-5.50, sourceFile='test.csv', 
-                       rawData='{}', createdAt=datetime.utcnow()),
-            Transaction(id='tx-2', userId='user-123', date=datetime.utcnow(), 
+                       rawData='{}', createdAt=datetime.now(UTC)),
+            Transaction(id='tx-2', userId='user-123', date=datetime.now(UTC), 
                        description='Lunch', amount=-15.00, sourceFile='test.csv', 
-                       rawData='{}', createdAt=datetime.utcnow())
+                       rawData='{}', createdAt=datetime.now(UTC))
         ]
         
         results = service._parse_categorization_response(response_text, transactions)
@@ -219,12 +219,12 @@ class TestCategorizationServiceMocked:
         categorization_service.bedrock.invoke_model.return_value = mock_response
         
         transactions = [
-            Transaction(id='tx-1', userId='user-123', date=datetime.utcnow(), 
+            Transaction(id='tx-1', userId='user-123', date=datetime.now(UTC), 
                        description='Starbucks', amount=-5.50, sourceFile='test.csv', 
-                       rawData='{}', createdAt=datetime.utcnow()),
-            Transaction(id='tx-2', userId='user-123', date=datetime.utcnow(), 
+                       rawData='{}', createdAt=datetime.now(UTC)),
+            Transaction(id='tx-2', userId='user-123', date=datetime.now(UTC), 
                        description='Shell Gas', amount=-40.00, sourceFile='test.csv', 
-                       rawData='{}', createdAt=datetime.utcnow())
+                       rawData='{}', createdAt=datetime.now(UTC))
         ]
         
         results = categorization_service.categorize_batch(transactions)
@@ -239,9 +239,9 @@ class TestCategorizationServiceMocked:
         categorization_service.bedrock.invoke_model.side_effect = Exception('Bedrock error')
         
         transactions = [
-            Transaction(id='tx-1', userId='user-123', date=datetime.utcnow(), 
+            Transaction(id='tx-1', userId='user-123', date=datetime.now(UTC), 
                        description='Test', amount=-10.00, sourceFile='test.csv', 
-                       rawData='{}', createdAt=datetime.utcnow())
+                       rawData='{}', createdAt=datetime.now(UTC))
         ]
         
         results = categorization_service.categorize_batch(transactions)
@@ -260,9 +260,9 @@ class TestCategorizationServiceMocked:
         """Test that large batches are split correctly."""
         # Create 60 transactions (should be split into 2 batches of 50)
         transactions = [
-            Transaction(id=f'tx-{i}', userId='user-123', date=datetime.utcnow(), 
+            Transaction(id=f'tx-{i}', userId='user-123', date=datetime.now(UTC), 
                        description=f'Transaction {i}', amount=-10.00, sourceFile='test.csv', 
-                       rawData='{}', createdAt=datetime.utcnow())
+                       rawData='{}', createdAt=datetime.now(UTC))
             for i in range(60)
         ]
         

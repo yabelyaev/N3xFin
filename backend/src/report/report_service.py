@@ -4,7 +4,7 @@ Report Service for N3xFin
 Generates monthly financial health reports with insights and export capabilities.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from decimal import Decimal
 from typing import Dict, List, Optional
 import boto3
@@ -71,7 +71,7 @@ class ReportService:
                 'insights': ['No transactions found for this month'],
                 'recommendations': [],
                 'transactionCount': 0,
-                'generatedAt': datetime.utcnow().isoformat()
+                'generatedAt': datetime.now(UTC).isoformat()
             }
         
         # Calculate spending and income
@@ -116,7 +116,7 @@ class ReportService:
             'insights': insights,
             'recommendations': recommendations,
             'transactionCount': len(transactions),
-            'generatedAt': datetime.utcnow().isoformat()
+            'generatedAt': datetime.now(UTC).isoformat()
         }
         
         # Store report in DynamoDB
@@ -452,6 +452,8 @@ Example: ["Your savings rate of 25% is excellent", "Dining spending increased by
         """Store report in DynamoDB."""
         try:
             self.reports_table.put_item(Item={
+                'PK': f'USER#{report["userId"]}',
+                'SK': f'REPORT#{report["month"]}',
                 'userId': report['userId'],
                 'month': report['month'],
                 'reportId': report['reportId'],

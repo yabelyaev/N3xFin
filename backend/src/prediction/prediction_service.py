@@ -4,7 +4,7 @@ Prediction Service for N3xFin
 Generates spending forecasts and alerts based on historical patterns.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from decimal import Decimal
 from typing import Dict, List, Optional
 from collections import defaultdict
@@ -44,7 +44,7 @@ class PredictionService:
             Prediction with amount, confidence, and historical average
         """
         # Get historical data (last 90 days)
-        end_date = datetime.utcnow()
+        end_date = datetime.now(UTC)
         start_date = end_date - timedelta(days=90)
         
         transactions = self._get_transactions_in_range(user_id, start_date, end_date)
@@ -103,7 +103,7 @@ class PredictionService:
             List of alerts with predictions and recommendations
         """
         # Get all categories from recent transactions
-        end_date = datetime.utcnow()
+        end_date = datetime.now(UTC)
         start_date = end_date - timedelta(days=30)
         
         transactions = self._get_transactions_in_range(user_id, start_date, end_date)
@@ -144,7 +144,7 @@ class PredictionService:
                 )
                 
                 alerts.append({
-                    'id': f"alert-{user_id}-{category}-{datetime.utcnow().timestamp()}",
+                    'id': f"alert-{user_id}-{category}-{datetime.now(UTC).timestamp()}",
                     'userId': user_id,
                     'category': category,
                     'message': f"Your {category} spending is predicted to be ${prediction['predictedAmount']:.2f} "
@@ -155,7 +155,7 @@ class PredictionService:
                     'severity': severity,
                     'recommendations': recommendations,
                     'confidence': prediction['confidence'],
-                    'createdAt': datetime.utcnow().isoformat()
+                    'createdAt': datetime.now(UTC).isoformat()
                 })
         
         # Sort by severity and predicted amount

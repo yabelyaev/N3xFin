@@ -4,16 +4,16 @@ Tests for Conversation Service
 
 import json
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from decimal import Decimal
 from moto import mock_aws
 import boto3
 from unittest.mock import patch, MagicMock
 
-from src.conversation.conversation_service import ConversationService
-from src.conversation.ask_question import lambda_handler
-from src.common.config import Config
-from src.common.errors import ValidationError
+from conversation.conversation_service import ConversationService
+from conversation.ask_question import lambda_handler
+from common.config import Config
+from common.errors import ValidationError
 
 
 @pytest.fixture
@@ -27,12 +27,12 @@ def conversation_service():
         dynamodb.create_table(
             TableName=Config.DYNAMODB_TABLE_TRANSACTIONS,
             KeySchema=[
-                {'AttributeName': 'userId', 'KeyType': 'HASH'},
-                {'AttributeName': 'date', 'KeyType': 'RANGE'}
+                {'AttributeName': 'PK', 'KeyType': 'HASH'},
+                {'AttributeName': 'SK', 'KeyType': 'RANGE'}
             ],
             AttributeDefinitions=[
-                {'AttributeName': 'userId', 'AttributeType': 'S'},
-                {'AttributeName': 'date', 'AttributeType': 'S'}
+                {'AttributeName': 'PK', 'AttributeType': 'S'},
+                {'AttributeName': 'SK', 'AttributeType': 'S'}
             ],
             BillingMode='PAY_PER_REQUEST'
         )
@@ -41,12 +41,12 @@ def conversation_service():
         dynamodb.create_table(
             TableName=Config.DYNAMODB_TABLE_CONVERSATIONS,
             KeySchema=[
-                {'AttributeName': 'userId', 'KeyType': 'HASH'},
-                {'AttributeName': 'timestamp', 'KeyType': 'RANGE'}
+                {'AttributeName': 'PK', 'KeyType': 'HASH'},
+                {'AttributeName': 'SK', 'KeyType': 'RANGE'}
             ],
             AttributeDefinitions=[
-                {'AttributeName': 'userId', 'AttributeType': 'S'},
-                {'AttributeName': 'timestamp', 'AttributeType': 'S'}
+                {'AttributeName': 'PK', 'AttributeType': 'S'},
+                {'AttributeName': 'SK', 'AttributeType': 'S'}
             ],
             BillingMode='PAY_PER_REQUEST'
         )
@@ -58,28 +58,36 @@ def conversation_service():
 def sample_transactions():
     """Create sample transaction data."""
     transactions = []
-    base_date = datetime.utcnow() - timedelta(days=20)
+    base_date = datetime.now(UTC) - timedelta(days=20)
     
     # Dining transactions
     for i in range(10):
+        txn_date = (base_date + timedelta(days=i * 2)).isoformat()
+        txn_id = f'dining-{i}'
         transactions.append({
+            'PK': f'USER#test-user',
+            'SK': f'TRANSACTION#{txn_date}#{txn_id}',
             'userId': 'test-user',
-            'date': (base_date + timedelta(days=i * 2)).isoformat(),
+            'date': txn_date,
             'description': f'Restaurant {i}',
             'amount': Decimal('-50.00'),
             'category': 'Dining',
-            'id': f'dining-{i}'
+            'id': txn_id
         })
     
     # Transportation
     for i in range(5):
+        txn_date = (base_date + timedelta(days=i * 3)).isoformat()
+        txn_id = f'transport-{i}'
         transactions.append({
+            'PK': f'USER#test-user',
+            'SK': f'TRANSACTION#{txn_date}#{txn_id}',
             'userId': 'test-user',
-            'date': (base_date + timedelta(days=i * 3)).isoformat(),
+            'date': txn_date,
             'description': 'Gas Station',
             'amount': Decimal('-40.00'),
             'category': 'Transportation',
-            'id': f'transport-{i}'
+            'id': txn_id
         })
     
     return transactions
@@ -91,7 +99,7 @@ def test_detect_time_range_this_month(conversation_service):
     
     assert result['description'] == 'this month'
     assert result['start'].day == 1
-    assert result['start'].month == datetime.utcnow().month
+    assert result['start'].month == datetime.now(UTC).month
 
 
 def test_detect_time_range_last_month(conversation_service):
@@ -101,7 +109,7 @@ def test_detect_time_range_last_month(conversation_service):
     # Should detect last month
     assert 'last month' in result['description'] or 'month' in result['description']
     # Start date should be in the past
-    assert result['start'] < datetime.utcnow()
+    assert result['start'] < datetime.now(UTC)
 
 
 def test_detect_time_range_this_week(conversation_service):

@@ -4,7 +4,7 @@ import hashlib
 import io
 import uuid
 import boto3
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import List, Dict, Any, Optional
 from dateutil import parser as date_parser
 from common.config import config
@@ -221,7 +221,7 @@ class ParserService:
                     balance=None,
                     sourceFile=source_file,
                     rawData=line,
-                    createdAt=datetime.utcnow()
+                    createdAt=datetime.now(UTC)
                 )
 
                 transactions.append(transaction)
@@ -309,7 +309,7 @@ class ParserService:
         {text[:10000]}  
 
         For each transaction, provide:
-        - date: Transaction date in YYYY-MM-DD format
+        - date: Transaction date in YYYY-MM-DD format (IMPORTANT: For dates like "10/18" or "11/01", interpret as MM/DD and use 2024 as the year unless the statement clearly shows a different year)
         - description: Transaction description/merchant name
         - amount: Transaction amount (negative for debits/expenses, positive for credits/deposits)
         - balance: Account balance after transaction (if visible)
@@ -328,6 +328,7 @@ class ParserService:
         - Extract ALL transactions visible in the text
         - Use negative amounts for debits/withdrawals/expenses
         - Use positive amounts for credits/deposits
+        - For dates in MM/DD format, use 2024 as the year
         - If balance is not visible, omit the balance field
         - Return empty array [] if no transactions found
         - Return ONLY the JSON array, no other text"""
@@ -382,7 +383,7 @@ class ParserService:
                             balance=float(tx_data['balance']) if 'balance' in tx_data else None,
                             sourceFile=source_file,
                             rawData=json.dumps(tx_data),
-                            createdAt=datetime.utcnow()
+                            createdAt=datetime.now(UTC)
                         )
                         transactions.append(transaction)
 
@@ -536,7 +537,7 @@ class ParserService:
             balance=balance,
             sourceFile=source_file,
             rawData=str(row),
-            createdAt=datetime.utcnow()
+            createdAt=datetime.now(UTC)
         )
     
     def detect_duplicates(self, transactions: List[Transaction], user_id: str) -> List[Transaction]:
@@ -634,11 +635,12 @@ class ParserService:
                     'description': transaction.description,
                     'amount': str(transaction.amount),  # Store as string to avoid precision issues
                     'sourceFile': transaction.sourceFile,
-                    'rawData': transaction.rawData,
                     'createdAt': transaction.createdAt.isoformat(),
                     'isAnomaly': False,
+                    'category': transaction.category if transaction.category else 'Uncategorized',
+                    'categoryConfidence': str(transaction.categoryConfidence) if transaction.categoryConfidence is not None else '0.0',
                     # GSI keys for querying
-                    'GSI1PK': f'USER#{transaction.userId}#CATEGORY#Uncategorized',  # Will be updated by categorization service
+                    'GSI1PK': f'USER#{transaction.userId}#CATEGORY#{transaction.category if transaction.category else "Uncategorized"}',  # Will be updated by categorization service
                     'GSI1SK': f'DATE#{transaction.date.isoformat()}',
                     'GSI2PK': f'USER#{transaction.userId}#DATE#{transaction.date.strftime("%Y-%m")}',
                     'GSI2SK': f'AMOUNT#{abs(transaction.amount):012.2f}'

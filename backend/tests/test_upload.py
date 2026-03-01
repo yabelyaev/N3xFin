@@ -1,8 +1,8 @@
 """Unit tests for upload service."""
 import pytest
-from src.upload.upload_service import UploadService
-from src.common.errors import ValidationError
-from src.common.config import config
+from upload.upload_service import UploadService
+from common.errors import ValidationError
+from common.config import config
 
 
 class TestFileValidation:

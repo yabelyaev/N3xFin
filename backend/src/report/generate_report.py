@@ -3,7 +3,7 @@ Lambda function for generating monthly reports.
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Dict, Any
 
 from report.report_service import ReportService
@@ -27,13 +27,19 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 'body': json.dumps({'error': 'Unauthorized'})
             }
         
-        # Parse query parameters
-        params = event.get('queryStringParameters') or {}
-        
+        # Parse parameters from either body or query params
+        query_params = event.get('queryStringParameters') or {}
+        body = {}
+        try:
+            if event.get('body'):
+                body = json.loads(event['body'])
+        except Exception:
+            pass
+            
         # Default to current month if not specified
-        now = datetime.utcnow()
-        year = int(params.get('year', now.year))
-        month = int(params.get('month', now.month))
+        now = datetime.now(UTC)
+        year = int(body.get('year') or query_params.get('year', now.year))
+        month = int(body.get('month') or query_params.get('month', now.month))
         
         # Initialize service
         service = ReportService()

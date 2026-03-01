@@ -2,7 +2,7 @@
 import boto3
 import uuid
 import mimetypes
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from typing import Dict, Any, Tuple
 from common.config import config
 from common.errors import ValidationError
@@ -91,7 +91,7 @@ class UploadService:
         is_valid, file_type, error = self.validate_file(filename, file_size)
         
         # Generate unique file key
-        timestamp = datetime.utcnow().strftime('%Y%m%d-%H%M%S')
+        timestamp = datetime.now(UTC).strftime('%Y%m%d-%H%M%S')
         unique_id = str(uuid.uuid4())[:8]
         safe_filename = filename.replace(' ', '_')
         s3_key = f'users/{user_id}/statements/{timestamp}-{unique_id}-{safe_filename}'
@@ -111,7 +111,7 @@ class UploadService:
                     'Metadata': {
                         'original-filename': filename,
                         'user-id': user_id,
-                        'upload-timestamp': datetime.utcnow().isoformat()
+                        'upload-timestamp': datetime.now(UTC).isoformat()
                     }
                 },
                 ExpiresIn=900  # 15 minutes

@@ -353,3 +353,87 @@ Important: Respond ONLY with the JSON array, no other text."""
                 f'Categorization failed: {str(e)}',
                 {'userId': user_id}
             )
+
+    def categorize_transactions_by_id(self, user_id: str, transaction_ids: List[str]) -> Dict[str, Any]:
+        """
+        Categorize specific transactions by their IDs.
+        
+        Args:
+            user_id: User ID
+            transaction_ids: List of transaction IDs to categorize
+            
+        Returns:
+            Summary of categorization results
+        """
+        if not transaction_ids:
+            return {
+                'totalProcessed': 0,
+                'categorized': 0,
+                'message': 'No transaction IDs provided'
+            }
+            
+        try:
+            # Fetch specific transactions
+            transactions = []
+            for tid in transaction_ids:
+                response = self.transactions_table.query(
+                    KeyConditionExpression='PK = :pk AND begins_with(SK, :sk_prefix)',
+                    FilterExpression='id = :id',
+                    ExpressionAttributeValues={
+                        ':pk': f'USER#{user_id}',
+                        ':sk_prefix': 'TRANSACTION#',
+                        ':id': tid
+                    }
+                )
+                items = response.get('Items', [])
+                if items:
+                    item = items[0]
+                    from datetime import datetime
+                    transactions.append(Transaction(
+                        id=item['id'],
+                        userId=user_id,
+                        date=datetime.fromisoformat(item['date']),
+                        description=item['description'],
+                        amount=float(item['amount']),
+                        balance=float(item.get('balance', 0)) if item.get('balance') else None,
+                        sourceFile=item['sourceFile'],
+                        rawData=item['rawData'],
+                        createdAt=datetime.fromisoformat(item['createdAt'])
+                    ))
+            
+            if not transactions:
+                return {
+                    'totalProcessed': 0,
+                    'categorized': 0,
+                    'message': 'Compatible transactions not found for provided IDs'
+                }
+                
+            # Categorize transactions
+            results = self.categorize_batch(transactions)
+            
+            # Update transactions with categories
+            categorized_count = 0
+            for transaction, result in zip(transactions, results):
+                self.update_transaction_category(
+                    transaction.id,
+                    user_id,
+                    result['category'],
+                    result['confidence'],
+                    result['reasoning']
+                )
+                if result['category'] != 'Other':
+                    categorized_count += 1
+                    
+            return {
+                'totalProcessed': len(transactions),
+                'categorized': categorized_count,
+                'uncategorized': len(transactions) - categorized_count,
+                'message': f'Successfully categorized {categorized_count} out of {len(transactions)} requested transactions'
+            }
+            
+        except Exception as e:
+            print(f'Failed to categorize identified transactions: {str(e)}')
+            raise ExternalServiceError(
+                f'Categorization by ID failed: {str(e)}',
+                {'userId': user_id, 'transactionIds': transaction_ids}
+            )

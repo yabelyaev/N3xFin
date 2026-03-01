@@ -3,7 +3,7 @@ Lambda function for retrieving analytics data.
 """
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from typing import Dict, Any
 
 from analytics.analytics_service import AnalyticsService
@@ -44,7 +44,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         analytics_type = params.get('type', 'category')
         
         # Parse date range
-        end_date = datetime.utcnow()
+        end_date = datetime.now(UTC)
         start_date = end_date - timedelta(days=30)
         
         if 'startDate' in params:
