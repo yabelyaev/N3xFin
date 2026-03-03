@@ -124,9 +124,9 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           filename: selectedFile.name,
-          fileSize: selectedFile.size 
+          fileSize: selectedFile.size
         }),
       });
 
@@ -135,7 +135,7 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
       }
 
       const { uploadUrl, fileKey } = await urlResponse.json();
-      
+
       // Step 2: Upload file to S3
       setUploadProgress(30);
       const uploadResponse = await fetch(uploadUrl, {
@@ -173,24 +173,48 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
 
       setUploadProgress(80);
 
-      // Step 4: Parse the statement
+      // Step 4: Trigger async parsing (returns 202 immediately)
       const parseResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://wiqpao4gze.execute-api.us-east-1.amazonaws.com/Prod'}/parser/parse`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           fileKey,
           bucket: 'n3xfin-data-087305321237',
-          useLLM: useLLM  // Include LLM flag
+          useLLM: useLLM || selectedFile.name.toLowerCase().endsWith('.pdf'),
         }),
       });
 
-      if (!parseResponse.ok) {
+      if (!parseResponse.ok && parseResponse.status !== 202) {
         const errorData = await parseResponse.json().catch(() => ({}));
-        const errorMsg = errorData.error?.message || errorData.message || 'Failed to parse statement';
+        const errorMsg = errorData.error?.message || errorData.message || 'Failed to start parsing';
         throw new Error(errorMsg);
+      }
+
+      // Step 5: Poll analytics until transactions appear (max 90s)
+      setUploadProgress(90);
+      const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://wiqpao4gze.execute-api.us-east-1.amazonaws.com/Prod';
+      const pollStart = Date.now();
+      const POLL_TIMEOUT = 90_000;
+      const POLL_INTERVAL = 3_000;
+
+      while (Date.now() - pollStart < POLL_TIMEOUT) {
+        await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL));
+        try {
+          const analyticsRes = await fetch(`${API_BASE}/analytics?type=spending`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` },
+          });
+          if (analyticsRes.ok) {
+            const analyticsData = await analyticsRes.json();
+            if (analyticsData?.totalTransactions > 0 || analyticsData?.data?.totalTransactions > 0) {
+              break; // Transactions are ready
+            }
+          }
+        } catch {
+          // Polling errors are non-fatal, keep polling
+        }
       }
 
       setUploadProgress(100);
@@ -323,7 +347,9 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
                       aria-label="Upload progress"
                     />
                   </div>
-                  <p className="text-sm text-gray-600">Uploading... {uploadProgress}%</p>
+                  <p className="text-sm text-gray-600">
+                    {uploadProgress < 90 ? `Uploading... ${uploadProgress}%` : 'Analyzing statement with AI... this may take up to 90 seconds'}
+                  </p>
                 </div>
               )}
 

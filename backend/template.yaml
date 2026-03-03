@@ -420,11 +420,19 @@ Resources:
               Action:
                 - dynamodb:PutItem
                 - dynamodb:BatchWriteItem
-              Resource: !GetAtt TransactionsTable.Arn
+                - dynamodb:Query
+                - dynamodb:GetItem
+              Resource:
+                - !GetAtt TransactionsTable.Arn
+                - !Sub '${TransactionsTable.Arn}/index/*'
             - Effect: Allow
               Action:
                 - bedrock:InvokeModel
               Resource: '*'
+            - Effect: Allow
+              Action:
+                - lambda:InvokeFunction
+              Resource: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:n3xfin-parse-statement'
       Events:
         ParseStatementApi:
           Type: Api
