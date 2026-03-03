@@ -357,29 +357,45 @@ class ParserService:
             # Parse response
             response_body = json.loads(response['body'].read())
             content = response_body['content'][0]['text']
-            
+
             print(f'--- RAW LLM RESPONSE START ---')
             print(content)
             print(f'--- RAW LLM RESPONSE END ---')
 
-            # Extract JSON from response
-            content = content.strip()
-            if content.startswith('```'):
-                lines = content.split('\n')
-                content = '\n'.join(lines[1:-1]) if len(lines) > 2 else content
-                content = content.replace('```json', '').replace('```', '').strip()
+            # Try multiple strategies to find the JSON array
+            transactions_data = None
 
-            # Parse transactions
+            # Strategy 1: strip fenced code block
+            cleaned = content.strip()
+            if cleaned.startswith('```'):
+                lines = cleaned.split('\n')
+                cleaned = '\n'.join(lines[1:-1]) if len(lines) > 2 else cleaned
+                cleaned = cleaned.replace('```json', '').replace('```', '').strip()
+
+            # Strategy 2: extract first [...] block with regex
+            import re
+            json_match = re.search(r'\[.*\]', cleaned, re.DOTALL)
+            if json_match:
+                cleaned = json_match.group(0)
+
             try:
-                transactions_data = json.loads(content)
+                transactions_data = json.loads(cleaned)
             except json.JSONDecodeError as jde:
                 print(f'Failed to parse LLM JSON: {str(jde)}')
-                print(f'Content was: {content}')
-                return []
+                print(f'Cleaned content was: {cleaned}')
+                raise ProcessingError(
+                    f'LLM returned invalid JSON: {str(jde)}',
+                    {'file': source_file}
+                )
 
             if not isinstance(transactions_data, list):
                 print(f'Warning: LLM returned non-list response: {type(transactions_data)}')
-                return []
+                raise ProcessingError(
+                    'LLM returned unexpected data type (not a list)',
+                    {'file': source_file}
+                )
+
+            print(f'LLM returned {len(transactions_data)} raw transaction records')
 
             # Convert to Transaction objects
             transactions = []
@@ -402,15 +418,22 @@ class ParserService:
                     transactions.append(transaction)
 
                 except Exception as e:
-                    print(f'Warning: Failed to parse LLM transaction: {str(e)}')
+                    print(f'Warning: Failed to parse LLM transaction entry: {str(e)}, data: {tx_data}')
                     continue
 
+            print(f'Successfully converted {len(transactions)} transactions from LLM response')
             return transactions
 
+        except ProcessingError:
+            raise
         except Exception as e:
-            print(f'Warning: LLM extraction failed: {str(e)}')
-            return []
-
+            import traceback
+            print(f'LLM extraction failed with unexpected error: {str(e)}')
+            traceback.print_exc()
+            raise ProcessingError(
+                f'LLM extraction failed: {str(e)}',
+                {'file': source_file}
+            )
 
 
 
