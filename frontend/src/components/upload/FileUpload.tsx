@@ -203,13 +203,14 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
       while (Date.now() - pollStart < POLL_TIMEOUT) {
         await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL));
         try {
-          const analyticsRes = await fetch(`${API_BASE}/analytics?type=spending`, {
+          const analyticsRes = await fetch(`${API_BASE}/analytics?type=category`, {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` },
           });
           if (analyticsRes.ok) {
             const analyticsData = await analyticsRes.json();
-            if (analyticsData?.totalTransactions > 0 || analyticsData?.data?.totalTransactions > 0) {
-              break; // Transactions are ready
+            // If we get any valid response (even empty), parsing completed successfully
+            if (analyticsData !== null && analyticsData !== undefined) {
+              break; // Analytics endpoint responded — transactions are being stored
             }
           }
         } catch {
