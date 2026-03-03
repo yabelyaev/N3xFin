@@ -22,6 +22,17 @@ Globals:
       AllowHeaders: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
       AllowOrigin: "'*'"
       AllowCredentials: false
+    GatewayResponses:
+      DEFAULT_4XX:
+        ResponseParameters:
+          Headers:
+            Access-Control-Allow-Origin: "'*'"
+            Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+      DEFAULT_5XX:
+        ResponseParameters:
+          Headers:
+            Access-Control-Allow-Origin: "'*'"
+            Access-Control-Allow-Headers: "'Content-Type,Authorization'"
     Auth:
       DefaultAuthorizer: CognitoAuthorizer
       AddDefaultAuthorizerToCorsPreflight: false
@@ -397,7 +408,8 @@ Resources:
       FunctionName: n3xfin-parse-statement
       CodeUri: src/
       Handler: parser.parse_statement.lambda_handler
-      Timeout: 60
+      Timeout: 300
+      MemorySize: 1024
       Policies:
         - Statement:
             - Effect: Allow
