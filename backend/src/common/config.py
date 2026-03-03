@@ -35,7 +35,7 @@ class Config:
     ALERT_THRESHOLD_PERCENTAGE = 120
     
     # AI/Bedrock
-    BEDROCK_MODEL_ID = 'anthropic.claude-3-5-haiku-20241022-v1:0'
+    BEDROCK_MODEL_ID = 'us.anthropic.claude-3-5-haiku-20241022-v1:0'
     BEDROCK_REGION = os.environ.get('AWS_REGION', 'us-east-1')
     CATEGORY_CONFIDENCE_THRESHOLD = 0.7
     MAX_CONVERSATION_HISTORY = 10
