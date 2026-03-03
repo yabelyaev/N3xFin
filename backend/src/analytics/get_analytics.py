@@ -45,7 +45,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         
         # Parse date range
         end_date = datetime.now(UTC)
-        start_date = end_date - timedelta(days=30)
+        start_date = end_date - timedelta(days=365 * 5)  # Default: last 5 years (all-time)
         
         if 'startDate' in params:
             try:
