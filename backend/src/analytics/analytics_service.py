@@ -307,10 +307,10 @@ class AnalyticsService:
         # PK format: USER#{user_id}
         # SK format: TRANSACTION#{date}#{transaction_id}
         response = self.transactions_table.query(
-            KeyConditionExpression=Key('PK').eq(f'USER#{user_id}') & 
+            KeyConditionExpression=Key('PK').eq(f'USER#{user_id}') &
                                  Key('SK').between(
-                                     f'TRANSACTION#{start_date.isoformat()}',
-                                     f'TRANSACTION#{end_date.isoformat()}~'  # ~ sorts after all dates
+                                     f'TRANSACTION#{start_date.strftime("%Y-%m-%d")}',
+                                     f'TRANSACTION#{end_date.strftime("%Y-%m-%d")}~'  # ~ sorts after all dates
                                  )
         )
         return response.get('Items', [])

@@ -666,7 +666,7 @@ class ParserService:
                 # Create DynamoDB item
                 item = {
                     'PK': f'USER#{transaction.userId}',
-                    'SK': f'TRANSACTION#{transaction.date.isoformat()}#{transaction.id}',
+                    'SK': f'TRANSACTION#{transaction.date.strftime("%Y-%m-%d")}#{transaction.id}',
                     'id': transaction.id,
                     'date': transaction.date.isoformat(),
                     'description': transaction.description,

@@ -103,17 +103,24 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 })
             }
         
+        # For category type, also compute totalSpending at the top level for the frontend
+        total_spending = sum(item.get('totalAmount', 0) for item in data) if analytics_type == 'category' else None
+
+        response_body = {
+            'type': analytics_type,
+            'data': data,
+            'dateRange': {
+                'start': start_date.isoformat(),
+                'end': end_date.isoformat()
+            }
+        }
+        if total_spending is not None:
+            response_body['totalSpending'] = total_spending
+
         return {
             'statusCode': 200,
             'headers': cors_headers,
-            'body': json.dumps({
-                'type': analytics_type,
-                'data': data,
-                'dateRange': {
-                    'start': start_date.isoformat(),
-                    'end': end_date.isoformat()
-                }
-            })
+            'body': json.dumps(response_body)
         }
     
     except ValidationError as e:
