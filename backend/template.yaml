@@ -374,6 +374,7 @@ Resources:
               Action:
                 - s3:GetObject
                 - s3:HeadObject
+                - s3:PutObject
               Resource: !Sub '${DataBucket.Arn}/*'
       Events:
         VerifyUploadApi:
@@ -393,6 +394,8 @@ Resources:
             - Effect: Allow
               Action:
                 - s3:ListBucket
+                - s3:GetObject
+                - s3:HeadObject
               Resource: !GetAtt DataBucket.Arn
       Events:
         ListFilesApi:
