@@ -417,20 +417,41 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
                       </div>
                     )}
                     <div className="flex space-x-3 justify-center">
-                      <button
-                        type="button"
-                        onClick={handleUpload}
-                        className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                      >
-                        Upload
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleReset}
-                        className="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
-                      >
-                        Cancel
-                      </button>
+                      {duplicateWarning ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={handleUpload}
+                            className="px-4 py-2 bg-amber-500 text-white text-sm font-medium rounded-md hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500"
+                          >
+                            Upload anyway
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleReset}
+                            className="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={handleUpload}
+                            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                          >
+                            Upload
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleReset}
+                            className="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 )}
