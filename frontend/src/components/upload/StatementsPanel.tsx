@@ -17,8 +17,8 @@ export const StatementsPanel = ({ onStatementsChanged }: Props) => {
     const [loading, setLoading] = useState(true);
     const [deletingKey, setDeletingKey] = useState<string | null>(null);
     const [deletingAll, setDeletingAll] = useState(false);
-    const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
     const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
+    const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const loadFiles = useCallback(async () => {
@@ -27,21 +27,19 @@ export const StatementsPanel = ({ onStatementsChanged }: Props) => {
             setError(null);
             const response = await apiService.listFiles();
             setFiles((response.data as any).files || []);
-        } catch (err: any) {
+        } catch {
             setError('Failed to load statements');
         } finally {
             setLoading(false);
         }
     }, []);
 
-    useEffect(() => {
-        loadFiles();
-    }, [loadFiles]);
+    useEffect(() => { loadFiles(); }, [loadFiles]);
 
     const handleDeleteOne = async (fileKey: string) => {
+        setDeletingKey(fileKey);
+        setConfirmDeleteKey(null);
         try {
-            setDeletingKey(fileKey);
-            setConfirmDeleteKey(null);
             await apiService.deleteStatement(fileKey);
             setFiles(prev => prev.filter(f => f.fileKey !== fileKey));
             onStatementsChanged?.();
@@ -53,9 +51,9 @@ export const StatementsPanel = ({ onStatementsChanged }: Props) => {
     };
 
     const handleDeleteAll = async () => {
+        setDeletingAll(true);
+        setConfirmDeleteAll(false);
         try {
-            setDeletingAll(true);
-            setConfirmDeleteAll(false);
             await apiService.deleteStatement();
             setFiles([]);
             onStatementsChanged?.();
@@ -66,117 +64,128 @@ export const StatementsPanel = ({ onStatementsChanged }: Props) => {
         }
     };
 
-    const formatSize = (bytes: number) => {
-        if (bytes < 1024) return `${bytes} B`;
-        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-        return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-    };
-
     const formatDate = (iso: string) =>
         new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 
-    const stripPrefix = (filename: string) =>
-        filename.replace(/^\d{8}-\d{6}-[a-f0-9]+-/, '');
+    const formatSize = (bytes: number) =>
+        bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(0)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+
+    const cleanName = (raw: string) => raw.replace(/^\d{8}-\d{6}-[a-f0-9]+-/, '');
+    const fileType = (name: string) => name.split('.').pop()?.toUpperCase() ?? 'FILE';
 
     if (loading) {
         return (
-            <div className="statements-panel">
-                <h3 className="statements-title">Uploaded Statements</h3>
-                <div className="statements-skeleton">
+            <div className="w-full max-w-2xl mx-auto mt-6">
+                <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-100">
                     {[1, 2, 3].map(i => (
-                        <div key={i} className="skeleton-row" />
+                        <div key={i} className="flex items-center gap-4 px-4 py-3 animate-pulse">
+                            <div className="h-4 bg-gray-200 rounded w-48" />
+                            <div className="h-4 bg-gray-200 rounded w-10 ml-2" />
+                            <div className="h-4 bg-gray-200 rounded w-28 ml-2" />
+                            <div className="h-6 bg-gray-200 rounded w-16 ml-auto" />
+                        </div>
                     ))}
                 </div>
             </div>
         );
     }
 
+    if (files.length === 0 && !error) return null;
+
     return (
-        <div className="statements-panel">
-            <div className="statements-header">
-                <h3 className="statements-title">
-                    Uploaded Statements
-                    {files.length > 0 && <span className="statements-count">{files.length}</span>}
-                </h3>
-                {files.length > 0 && (
-                    <button
-                        className="btn-delete-all"
-                        onClick={() => setConfirmDeleteAll(true)}
-                        disabled={deletingAll}
-                    >
-                        {deletingAll ? 'Deleting…' : '🗑 Delete All'}
-                    </button>
-                )}
-            </div>
-
+        <div className="w-full max-w-2xl mx-auto mt-6">
             {error && (
-                <div className="statements-error">
+                <div className="mb-3 px-4 py-2 bg-red-50 border border-red-200 rounded-md text-sm text-red-700 flex justify-between">
                     {error}
-                    <button onClick={() => setError(null)} className="dismiss-btn">✕</button>
+                    <button onClick={() => setError(null)} className="ml-4 text-red-500 hover:text-red-700">✕</button>
                 </div>
             )}
 
-            {/* Confirm delete all */}
-            {confirmDeleteAll && (
-                <div className="confirm-dialog">
-                    <p>Delete all {files.length} statements and their transaction data?</p>
-                    <div className="confirm-actions">
-                        <button className="btn-confirm-delete" onClick={handleDeleteAll}>Yes, delete all</button>
-                        <button className="btn-cancel" onClick={() => setConfirmDeleteAll(false)}>Cancel</button>
-                    </div>
-                </div>
-            )}
-
-            {files.length === 0 ? (
-                <div className="statements-empty">
-                    <span className="empty-icon">📄</span>
-                    <p>No statements uploaded yet</p>
-                </div>
-            ) : (
-                <div className="statements-list">
-                    {files.map(file => (
-                        <div key={file.fileKey} className="statement-row">
-                            <div className="statement-info">
-                                <span className="statement-icon">📄</span>
-                                <div className="statement-details">
-                                    <span className="statement-name">{stripPrefix(file.filename)}</span>
-                                    <span className="statement-meta">
-                                        {formatDate(file.lastModified)} · {formatSize(file.size)}
-                                    </span>
-                                </div>
-                            </div>
-
-                            {confirmDeleteKey === file.fileKey ? (
-                                <div className="confirm-inline">
-                                    <span className="confirm-text">Delete this statement?</span>
-                                    <button
-                                        className="btn-confirm-delete-sm"
-                                        onClick={() => handleDeleteOne(file.fileKey)}
-                                        disabled={deletingKey === file.fileKey}
-                                    >
-                                        {deletingKey === file.fileKey ? '…' : 'Yes'}
-                                    </button>
-                                    <button
-                                        className="btn-cancel-sm"
-                                        onClick={() => setConfirmDeleteKey(null)}
-                                    >
-                                        No
-                                    </button>
-                                </div>
-                            ) : (
-                                <button
-                                    className="btn-delete-row"
-                                    onClick={() => setConfirmDeleteKey(file.fileKey)}
-                                    disabled={!!deletingKey}
-                                    title="Delete statement"
-                                >
-                                    🗑
-                                </button>
-                            )}
+            <div className="bg-white rounded-lg border border-gray-200">
+                {/* Header */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                    <h3 className="text-sm font-semibold text-gray-700">
+                        Uploaded Statements
+                        <span className="ml-2 text-xs font-normal text-gray-400">{files.length} file{files.length !== 1 ? 's' : ''}</span>
+                    </h3>
+                    {files.length > 0 && !confirmDeleteAll && (
+                        <button
+                            onClick={() => setConfirmDeleteAll(true)}
+                            disabled={deletingAll}
+                            className="text-xs text-red-500 hover:text-red-700 font-medium disabled:opacity-50"
+                        >
+                            {deletingAll ? 'Deleting…' : 'Delete all'}
+                        </button>
+                    )}
+                    {confirmDeleteAll && (
+                        <div className="flex items-center gap-2 text-xs">
+                            <span className="text-gray-600">Delete all {files.length} statements?</span>
+                            <button onClick={handleDeleteAll} className="text-red-600 font-semibold hover:text-red-800">Yes</button>
+                            <button onClick={() => setConfirmDeleteAll(false)} className="text-gray-500 hover:text-gray-700">No</button>
                         </div>
-                    ))}
+                    )}
                 </div>
-            )}
+
+                {/* File rows */}
+                <div className="divide-y divide-gray-50">
+                    {files.map(file => {
+                        const name = cleanName(file.filename);
+                        const type = fileType(name);
+                        const isDeleting = deletingKey === file.fileKey;
+                        const confirming = confirmDeleteKey === file.fileKey;
+
+                        return (
+                            <div key={file.fileKey} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
+                                {/* PDF/CSV icon */}
+                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold ${type === 'PDF' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                                    }`}>
+                                    {type}
+                                </span>
+
+                                {/* Filename */}
+                                <span className="flex-1 text-sm text-gray-800 truncate" title={name}>{name}</span>
+
+                                {/* Date */}
+                                <span className="text-xs text-gray-400 whitespace-nowrap">{formatDate(file.lastModified)}</span>
+
+                                {/* Size */}
+                                <span className="text-xs text-gray-400 whitespace-nowrap w-14 text-right">{formatSize(file.size)}</span>
+
+                                {/* Delete */}
+                                {confirming ? (
+                                    <div className="flex items-center gap-2 text-xs ml-2">
+                                        <button
+                                            onClick={() => handleDeleteOne(file.fileKey)}
+                                            disabled={isDeleting}
+                                            className="text-red-600 font-semibold hover:text-red-800 disabled:opacity-50"
+                                        >
+                                            {isDeleting ? '…' : 'Delete'}
+                                        </button>
+                                        <button
+                                            onClick={() => setConfirmDeleteKey(null)}
+                                            className="text-gray-400 hover:text-gray-600"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={() => setConfirmDeleteKey(file.fileKey)}
+                                        disabled={!!deletingKey}
+                                        className="ml-2 p-1.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-30"
+                                        title="Delete statement"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                    </button>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
         </div>
     );
 };
