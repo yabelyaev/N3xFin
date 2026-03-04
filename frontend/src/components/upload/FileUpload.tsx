@@ -27,6 +27,7 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
   const [useLLM, setUseLLM] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
   const [fileHash, setFileHash] = useState<string | null>(null);
+  const [isDuplicateChecking, setIsDuplicateChecking] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   /** Compute SHA-256 of a file using the Web Crypto API */
@@ -82,7 +83,8 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
 
     setSelectedFile(file);
 
-    // Compute hash and check for duplicates in background
+    // Compute hash and check for duplicates — block Upload button until done
+    setIsDuplicateChecking(true);
     try {
       const hash = await computeHash(file);
       setFileHash(hash);
@@ -109,6 +111,8 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
       }
     } catch {
       // Hash check is non-fatal — proceed normally
+    } finally {
+      setIsDuplicateChecking(false);
     }
   };
 
@@ -417,7 +421,15 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
                       </div>
                     )}
                     <div className="flex space-x-3 justify-center">
-                      {duplicateWarning ? (
+                      {isDuplicateChecking ? (
+                        <button
+                          type="button"
+                          disabled
+                          className="px-4 py-2 bg-gray-300 text-gray-500 text-sm font-medium rounded-md cursor-not-allowed"
+                        >
+                          Checking…
+                        </button>
+                      ) : duplicateWarning ? (
                         <>
                           <button
                             type="button"
