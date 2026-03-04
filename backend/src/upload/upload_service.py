@@ -145,18 +145,21 @@ class UploadService:
                 Key=file_key
             )
 
-            # Store hash in S3 object metadata if provided
+            # Store hash in S3 object metadata if provided (non-fatal if it fails)
             if file_hash:
-                existing_metadata = response.get('Metadata', {})
-                existing_metadata['filehash'] = file_hash
-                self.s3.copy_object(
-                    Bucket=self.bucket,
-                    CopySource={'Bucket': self.bucket, 'Key': file_key},
-                    Key=file_key,
-                    Metadata=existing_metadata,
-                    MetadataDirective='REPLACE',
-                    ContentType=response.get('ContentType', 'application/octet-stream'),
-                )
+                try:
+                    existing_metadata = response.get('Metadata', {})
+                    existing_metadata['filehash'] = file_hash
+                    self.s3.copy_object(
+                        Bucket=self.bucket,
+                        CopySource={'Bucket': self.bucket, 'Key': file_key},
+                        Key=file_key,
+                        Metadata=existing_metadata,
+                        MetadataDirective='REPLACE',
+                        ContentType=response.get('ContentType', 'application/octet-stream'),
+                    )
+                except Exception as hash_err:
+                    print(f'Warning: could not store file hash (non-fatal): {hash_err}')
 
             return {
                 'fileKey': file_key,
