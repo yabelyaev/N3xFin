@@ -133,18 +133,10 @@ class UploadService:
                 {'error': str(e)}
             )
     
-    def verify_upload(self, file_key: str) -> Dict[str, Any]:
+    def verify_upload(self, file_key: str, file_hash: str = None) -> Dict[str, Any]:
         """
         Verify that file was successfully uploaded to S3.
-        
-        Args:
-            file_key: S3 object key
-            
-        Returns:
-            Dict containing file metadata
-            
-        Raises:
-            ValidationError: If file not found or verification fails
+        Optionally stores file_hash in S3 metadata for duplicate detection.
         """
         print(f'Verifying upload for file_key: {file_key}')
         try:
@@ -152,18 +144,30 @@ class UploadService:
                 Bucket=self.bucket,
                 Key=file_key
             )
-            
-            print(f'S3 head_object successful')
-            
+
+            # Store hash in S3 object metadata if provided
+            if file_hash:
+                existing_metadata = response.get('Metadata', {})
+                existing_metadata['filehash'] = file_hash
+                self.s3.copy_object(
+                    Bucket=self.bucket,
+                    CopySource={'Bucket': self.bucket, 'Key': file_key},
+                    Key=file_key,
+                    Metadata=existing_metadata,
+                    MetadataDirective='REPLACE',
+                    ContentType=response.get('ContentType', 'application/octet-stream'),
+                )
+
             return {
                 'fileKey': file_key,
                 'size': response['ContentLength'],
                 'contentType': response.get('ContentType'),
                 'lastModified': response['LastModified'].isoformat(),
                 'encrypted': response.get('ServerSideEncryption') == 'AES256',
-                'metadata': response.get('Metadata', {})
+                'metadata': response.get('Metadata', {}),
+                'fileHash': file_hash,
             }
-            
+
         except self.s3.exceptions.NoSuchKey:
             print(f'File not found: {file_key}')
             raise ValidationError(
@@ -246,12 +250,20 @@ class UploadService:
             
             files = []
             for obj in response.get('Contents', []):
-                files.append({
+                file_entry = {
                     'fileKey': obj['Key'],
                     'size': obj['Size'],
                     'lastModified': obj['LastModified'].isoformat(),
-                    'filename': obj['Key'].split('/')[-1]
-                })
+                    'filename': obj['Key'].split('/')[-1],
+                    'fileHash': None,
+                }
+                # Fetch hash from S3 metadata
+                try:
+                    head = self.s3.head_object(Bucket=self.bucket, Key=obj['Key'])
+                    file_entry['fileHash'] = head.get('Metadata', {}).get('filehash')
+                except Exception:
+                    pass
+                files.append(file_entry)
             
             return files
             

@@ -46,6 +46,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         # Parse request body
         body = json.loads(event.get('body', '{}'))
         file_key = body.get('fileKey')
+        file_hash = body.get('fileHash')  # SHA-256 sent from frontend
         
         print(f'Parsed body: {body}')
         print(f'File key: {file_key}')
@@ -85,7 +86,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         
         # Verify upload
         upload_service = UploadService()
-        result = upload_service.verify_upload(file_key)
+        result = upload_service.verify_upload(file_key, file_hash)
         
         return {
             'statusCode': 200,

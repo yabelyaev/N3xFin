@@ -1,5 +1,6 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import type { DragEvent, ChangeEvent } from 'react';
+import { apiService } from '../../services/api';
 import { StatementsPanel } from './StatementsPanel';
 
 interface FileUploadProps {
@@ -24,7 +25,17 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [useLLM, setUseLLM] = useState(false);
+  const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
+  const [fileHash, setFileHash] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  /** Compute SHA-256 of a file using the Web Crypto API */
+  const computeHash = useCallback(async (file: File): Promise<string> => {
+    const buffer = await file.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  }, []);
 
   const validateFile = (file: File): ValidationError | null => {
     // Check file extension
@@ -55,8 +66,10 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
     return null;
   };
 
-  const handleFile = (file: File) => {
+  const handleFile = async (file: File) => {
     setValidationError(null);
+    setDuplicateWarning(null);
+    setFileHash(null);
     setUploadSuccess(false);
     setUploadProgress(0);
 
@@ -68,6 +81,23 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
     }
 
     setSelectedFile(file);
+
+    // Compute hash and check for duplicates in background
+    try {
+      const hash = await computeHash(file);
+      setFileHash(hash);
+      const res = await apiService.listFiles();
+      const existing: any[] = (res.data as any).files || [];
+      const dupe = existing.find(f => f.fileHash && f.fileHash === hash);
+      if (dupe) {
+        const dupeName = dupe.filename.replace(/^\d{8}-\d{6}-[a-f0-9]+-/, '');
+        setDuplicateWarning(
+          `This file appears to be identical to "${dupeName}" you uploaded on ${new Date(dupe.lastModified).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}. Consider uploading a different statement.`
+        );
+      }
+    } catch {
+      // Hash check is non-fatal — proceed normally
+    }
   };
 
   const handleDragEnter = (e: DragEvent<HTMLDivElement>) => {
@@ -156,14 +186,14 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
       // Wait a moment for S3 consistency
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Step 3: Verify upload
+      // Step 3: Verify upload (send hash so it's stored for future duplicate checks)
       const verifyResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://wiqpao4gze.execute-api.us-east-1.amazonaws.com/Prod'}/upload/verify`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
         },
-        body: JSON.stringify({ fileKey }),
+        body: JSON.stringify({ fileKey, fileHash }),
       });
 
       if (!verifyResponse.ok) {
@@ -243,6 +273,8 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
   const handleReset = () => {
     setSelectedFile(null);
     setValidationError(null);
+    setDuplicateWarning(null);
+    setFileHash(null);
     setUploadProgress(0);
     setUploadSuccess(false);
     if (fileInputRef.current) {
@@ -422,6 +454,20 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
             )}
           </div>
         </div>
+
+        {duplicateWarning && (
+          <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-md" role="alert">
+            <div className="flex items-start gap-3">
+              <svg className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+              </svg>
+              <div>
+                <h3 className="text-sm font-medium text-amber-800">Duplicate statement detected</h3>
+                <p className="mt-1 text-sm text-amber-700">{duplicateWarning}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {validationError && (
           <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-md" role="alert" aria-live="assertive">
