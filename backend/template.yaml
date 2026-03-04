@@ -488,6 +488,10 @@ Resources:
                 - dynamodb:UpdateItem
                 - dynamodb:BatchWriteItem
               Resource: !GetAtt TransactionsTable.Arn
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource: '*'
       Events:
         CategorizeTransactionsApi:
           Type: Api

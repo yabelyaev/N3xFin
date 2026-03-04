@@ -283,12 +283,16 @@ Important: Respond ONLY with the JSON array, no other text."""
             Summary of categorization results
         """
         try:
-            # Get uncategorized transactions
+            # Get uncategorized transactions - newest first
             from boto3.dynamodb.conditions import Key as DKey, Attr as DAttr
+            
+            # Use ScanIndexForward=False to get newest transactions first
+            # We fetch more items (up to 1000) to find enough uncategorized ones
             response = self.transactions_table.query(
                 KeyConditionExpression=DKey('PK').eq(f'USER#{user_id}') & DKey('SK').begins_with('TRANSACTION#'),
                 FilterExpression=DAttr('category').not_exists() | DAttr('category').eq('Uncategorized'),
-                Limit=limit
+                ScanIndexForward=False,
+                Limit=max(limit, 1000)
             )
             
             items = response.get('Items', [])
