@@ -20,6 +20,12 @@ export const StatementsPanel = ({ onStatementsChanged }: Props) => {
     const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
     const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [sortDesc, setSortDesc] = useState(true); // newest first by default
+
+    const sortedFiles = [...files].sort((a, b) => {
+        const diff = new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime();
+        return sortDesc ? diff : -diff;
+    });
 
     const loadFiles = useCallback(async () => {
         try {
@@ -108,27 +114,41 @@ export const StatementsPanel = ({ onStatementsChanged }: Props) => {
                         Uploaded Statements
                         <span className="ml-2 text-xs font-normal text-gray-400">{files.length} file{files.length !== 1 ? 's' : ''}</span>
                     </h3>
-                    {files.length > 0 && !confirmDeleteAll && (
+                    <div className="flex items-center gap-3">
                         <button
-                            onClick={() => setConfirmDeleteAll(true)}
-                            disabled={deletingAll}
-                            className="text-xs text-red-500 hover:text-red-700 font-medium disabled:opacity-50"
+                            onClick={() => setSortDesc(d => !d)}
+                            className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 font-medium"
+                            title={sortDesc ? 'Sorted: newest first' : 'Sorted: oldest first'}
                         >
-                            {deletingAll ? 'Deleting…' : 'Delete all'}
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                {sortDesc
+                                    ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+                                    : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h9m5-4v12m0 0l-4-4m4 4l4-4" />
+                                }
+                            </svg>
+                            {sortDesc ? 'Newest' : 'Oldest'}
                         </button>
-                    )}
-                    {confirmDeleteAll && (
-                        <div className="flex items-center gap-2 text-xs">
-                            <span className="text-gray-600">Delete all {files.length} statements?</span>
-                            <button onClick={handleDeleteAll} className="text-red-600 font-semibold hover:text-red-800">Yes</button>
-                            <button onClick={() => setConfirmDeleteAll(false)} className="text-gray-500 hover:text-gray-700">No</button>
-                        </div>
-                    )}
+                        {confirmDeleteAll ? (
+                            <div className="flex items-center gap-2 text-xs">
+                                <span className="text-gray-600">Delete all {files.length} statements?</span>
+                                <button onClick={handleDeleteAll} className="text-red-600 font-semibold hover:text-red-800">Yes</button>
+                                <button onClick={() => setConfirmDeleteAll(false)} className="text-gray-500 hover:text-gray-700">No</button>
+                            </div>
+                        ) : files.length > 0 && (
+                            <button
+                                onClick={() => setConfirmDeleteAll(true)}
+                                disabled={deletingAll}
+                                className="text-xs text-red-500 hover:text-red-700 font-medium disabled:opacity-50"
+                            >
+                                {deletingAll ? 'Deleting…' : 'Delete all'}
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 {/* File rows */}
                 <div className="divide-y divide-gray-50">
-                    {files.map(file => {
+                    {sortedFiles.map(file => {
                         const name = cleanName(file.filename);
                         const type = fileType(name);
                         const isDeleting = deletingKey === file.fileKey;
