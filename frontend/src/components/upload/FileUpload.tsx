@@ -88,11 +88,23 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
       setFileHash(hash);
       const res = await apiService.listFiles();
       const existing: any[] = (res.data as any).files || [];
-      const dupe = existing.find(f => f.fileHash && f.fileHash === hash);
+
+      // Primary check: hash match (exact duplicate, even if renamed)
+      let dupe = existing.find(f => f.fileHash && f.fileHash === hash);
+
+      // Fallback: filename match for files uploaded before hashes were stored
+      if (!dupe) {
+        dupe = existing.find(f => {
+          const cleanedName = f.filename.replace(/^\d{8}-\d{6}-[a-f0-9]+-/, '');
+          return cleanedName === file.name;
+        });
+      }
+
       if (dupe) {
         const dupeName = dupe.filename.replace(/^\d{8}-\d{6}-[a-f0-9]+-/, '');
+        const matchType = dupe.fileHash ? 'identical content to' : 'the same name as';
         setDuplicateWarning(
-          `This file appears to be identical to "${dupeName}" you uploaded on ${new Date(dupe.lastModified).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}. Consider uploading a different statement.`
+          `This file has ${matchType} "${dupeName}" you uploaded on ${new Date(dupe.lastModified).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}. Consider uploading a different statement.`
         );
       }
     } catch {
