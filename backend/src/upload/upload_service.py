@@ -3,7 +3,8 @@ import boto3
 import uuid
 import mimetypes
 from datetime import datetime, timedelta, UTC
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, List, Tuple
+from boto3.dynamodb.conditions import Key, Attr
 from common.config import config
 from common.errors import ValidationError
 
@@ -258,4 +259,49 @@ class UploadService:
             raise ValidationError(
                 f'Failed to list files: {str(e)}',
                 {'userId': user_id, 'error': str(e)}
+            )
+
+    def delete_statement_transactions(self, user_id: str, file_key: str) -> int:
+        """
+        Delete all DynamoDB transactions associated with a given S3 file key.
+
+        Args:
+            user_id: User ID (PK partition key)
+            file_key: S3 object key stored in the 'sourceFile' attribute
+
+        Returns:
+            Number of transactions deleted
+        """
+        try:
+            dynamodb = boto3.resource('dynamodb', region_name=config.BEDROCK_REGION)
+            table = dynamodb.Table(config.DYNAMODB_TABLE_TRANSACTIONS)
+
+            # Query all transactions for the user that came from this file
+            items_to_delete = []
+            kwargs = dict(
+                KeyConditionExpression=Key('PK').eq(f'USER#{user_id}') & Key('SK').begins_with('TRANSACTION#'),
+                FilterExpression=Attr('sourceFile').eq(file_key),
+                ProjectionExpression='PK, SK',
+            )
+            while True:
+                resp = table.query(**kwargs)
+                items_to_delete.extend(resp.get('Items', []))
+                if 'LastEvaluatedKey' not in resp:
+                    break
+                kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
+
+            if not items_to_delete:
+                return 0
+
+            # Batch delete in chunks of 25 (DynamoDB limit)
+            with table.batch_writer() as batch:
+                for item in items_to_delete:
+                    batch.delete_item(Key={'PK': item['PK'], 'SK': item['SK']})
+
+            return len(items_to_delete)
+
+        except Exception as e:
+            raise ValidationError(
+                f'Failed to delete transactions for file: {str(e)}',
+                {'userId': user_id, 'fileKey': file_key, 'error': str(e)}
             )

@@ -237,14 +237,10 @@ Important: Respond ONLY with the JSON array, no other text."""
         """
         try:
             # Find the transaction
+            from boto3.dynamodb.conditions import Key as DKey, Attr as DAttr
             response = self.transactions_table.query(
-                KeyConditionExpression='PK = :pk AND begins_with(SK, :sk_prefix)',
-                FilterExpression='id = :id',
-                ExpressionAttributeValues={
-                    ':pk': f'USER#{user_id}',
-                    ':sk_prefix': 'TRANSACTION#',
-                    ':id': transaction_id
-                }
+                KeyConditionExpression=DKey('PK').eq(f'USER#{user_id}') & DKey('SK').begins_with('TRANSACTION#'),
+                FilterExpression=DAttr('id').eq(transaction_id)
             )
             
             items = response.get('Items', [])
@@ -288,14 +284,10 @@ Important: Respond ONLY with the JSON array, no other text."""
         """
         try:
             # Get uncategorized transactions
+            from boto3.dynamodb.conditions import Key as DKey, Attr as DAttr
             response = self.transactions_table.query(
-                KeyConditionExpression='PK = :pk AND begins_with(SK, :sk_prefix)',
-                FilterExpression='attribute_not_exists(category) OR category = :other',
-                ExpressionAttributeValues={
-                    ':pk': f'USER#{user_id}',
-                    ':sk_prefix': 'TRANSACTION#',
-                    ':other': 'Uncategorized'
-                },
+                KeyConditionExpression=DKey('PK').eq(f'USER#{user_id}') & DKey('SK').begins_with('TRANSACTION#'),
+                FilterExpression=DAttr('category').not_exists() | DAttr('category').eq('Uncategorized'),
                 Limit=limit
             )
             
@@ -320,7 +312,7 @@ Important: Respond ONLY with the JSON array, no other text."""
                     amount=float(item['amount']),
                     balance=float(item.get('balance', 0)) if item.get('balance') else None,
                     sourceFile=item['sourceFile'],
-                    rawData=item['rawData'],
+                    rawData=item.get('rawData', ''),
                     createdAt=datetime.fromisoformat(item['createdAt'])
                 ))
             
@@ -397,7 +389,7 @@ Important: Respond ONLY with the JSON array, no other text."""
                         amount=float(item['amount']),
                         balance=float(item.get('balance', 0)) if item.get('balance') else None,
                         sourceFile=item['sourceFile'],
-                        rawData=item['rawData'],
+                        rawData=item.get('rawData', ''),
                         createdAt=datetime.fromisoformat(item['createdAt'])
                     ))
             

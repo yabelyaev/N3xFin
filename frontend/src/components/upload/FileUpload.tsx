@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import type { DragEvent, ChangeEvent } from 'react';
+import { StatementsPanel } from './StatementsPanel';
 
 interface FileUploadProps {
   onUploadComplete?: (key: string) => void;
@@ -250,151 +251,183 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto">
-      <div
-        className={`
+    <>
+      <div className="w-full max-w-2xl mx-auto">
+        <div
+          className={`
           relative border-2 border-dashed rounded-lg p-8 transition-colors
           ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white'}
           ${validationError ? 'border-red-300 bg-red-50' : ''}
           ${uploadSuccess ? 'border-green-300 bg-green-50' : ''}
         `}
-        onDragEnter={handleDragEnter}
-        onDragLeave={handleDragLeave}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
-        role="region"
-        aria-label="File upload area"
-      >
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".csv,.pdf"
-          onChange={handleFileInputChange}
-          className="hidden"
-          aria-label="Choose file to upload"
-          id="file-upload-input"
-        />
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+          role="region"
+          aria-label="File upload area"
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,.pdf"
+            onChange={handleFileInputChange}
+            className="hidden"
+            aria-label="Choose file to upload"
+            id="file-upload-input"
+          />
 
-        <div className="text-center">
-          {!selectedFile && !uploadSuccess && (
-            <>
-              <svg
-                className="mx-auto h-12 w-12 text-gray-400"
-                stroke="currentColor"
-                fill="none"
-                viewBox="0 0 48 48"
-                aria-hidden="true"
-              >
-                <path
-                  d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              <div className="mt-4">
-                <p className="text-sm text-gray-600">
-                  Drag and drop your bank statement here, or
-                </p>
-                <button
-                  type="button"
-                  onClick={handleBrowseClick}
-                  className="mt-2 text-sm font-medium text-blue-600 hover:text-blue-500"
-                  aria-label="Browse and select file"
-                >
-                  browse files
-                </button>
-              </div>
-              <p className="mt-2 text-xs text-gray-500">
-                CSV or PDF files up to 10MB
-              </p>
-            </>
-          )}
-
-          {selectedFile && !uploadSuccess && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-center space-x-2">
+          <div className="text-center">
+            {!selectedFile && !uploadSuccess && (
+              <>
                 <svg
-                  className="h-8 w-8 text-blue-500"
+                  className="mx-auto h-12 w-12 text-gray-400"
+                  stroke="currentColor"
+                  fill="none"
+                  viewBox="0 0 48 48"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                <div className="mt-4">
+                  <p className="text-sm text-gray-600">
+                    Drag and drop your bank statement here, or
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleBrowseClick}
+                    className="mt-2 text-sm font-medium text-blue-600 hover:text-blue-500"
+                    aria-label="Browse and select file"
+                  >
+                    browse files
+                  </button>
+                </div>
+                <p className="mt-2 text-xs text-gray-500">
+                  CSV or PDF files up to 10MB
+                </p>
+              </>
+            )}
+
+            {selectedFile && !uploadSuccess && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-center space-x-2">
+                  <svg
+                    className="h-8 w-8 text-blue-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                  </svg>
+                  <div className="text-left">
+                    <p className="text-sm font-medium text-gray-900">{selectedFile.name}</p>
+                    <p className="text-xs text-gray-500">
+                      {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                </div>
+
+                {isUploading && (
+                  <div className="space-y-2" role="status" aria-live="polite">
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${uploadProgress}%` }}
+                        role="progressbar"
+                        aria-valuenow={uploadProgress}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-label="Upload progress"
+                      />
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      {uploadProgress < 90 ? `Uploading... ${uploadProgress}%` : 'Analyzing statement with AI... this may take up to 90 seconds'}
+                    </p>
+                  </div>
+                )}
+
+                {!isUploading && (
+                  <div className="space-y-3">
+                    {selectedFile.name.toLowerCase().endsWith('.pdf') && (
+                      <div className="flex items-center justify-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="use-llm"
+                          checked={useLLM}
+                          onChange={(e) => setUseLLM(e.target.checked)}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <label htmlFor="use-llm" className="text-sm text-gray-700">
+                          Use AI vision for parsing (recommended for complex PDFs)
+                        </label>
+                      </div>
+                    )}
+                    <div className="flex space-x-3 justify-center">
+                      <button
+                        type="button"
+                        onClick={handleUpload}
+                        className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      >
+                        Upload
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleReset}
+                        className="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {uploadSuccess && (
+              <div className="space-y-4" role="status" aria-live="polite">
+                <svg
+                  className="mx-auto h-12 w-12 text-green-500"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
+                  aria-hidden="true"
                 >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
-                <div className="text-left">
-                  <p className="text-sm font-medium text-gray-900">{selectedFile.name}</p>
-                  <p className="text-xs text-gray-500">
-                    {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                  </p>
-                </div>
+                <p className="text-sm font-medium text-green-600">Upload successful!</p>
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  aria-label="Upload another file"
+                >
+                  Upload Another File
+                </button>
               </div>
+            )}
+          </div>
+        </div>
 
-              {isUploading && (
-                <div className="space-y-2" role="status" aria-live="polite">
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${uploadProgress}%` }}
-                      role="progressbar"
-                      aria-valuenow={uploadProgress}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-label="Upload progress"
-                    />
-                  </div>
-                  <p className="text-sm text-gray-600">
-                    {uploadProgress < 90 ? `Uploading... ${uploadProgress}%` : 'Analyzing statement with AI... this may take up to 90 seconds'}
-                  </p>
-                </div>
-              )}
-
-              {!isUploading && (
-                <div className="space-y-3">
-                  {selectedFile.name.toLowerCase().endsWith('.pdf') && (
-                    <div className="flex items-center justify-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="use-llm"
-                        checked={useLLM}
-                        onChange={(e) => setUseLLM(e.target.checked)}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      />
-                      <label htmlFor="use-llm" className="text-sm text-gray-700">
-                        Use AI vision for parsing (recommended for complex PDFs)
-                      </label>
-                    </div>
-                  )}
-                  <div className="flex space-x-3 justify-center">
-                    <button
-                      type="button"
-                      onClick={handleUpload}
-                      className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    >
-                      Upload
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleReset}
-                      className="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {uploadSuccess && (
-            <div className="space-y-4" role="status" aria-live="polite">
+        {validationError && (
+          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-md" role="alert" aria-live="assertive">
+            <div className="flex">
               <svg
-                className="mx-auto h-12 w-12 text-green-500"
+                className="h-5 w-5 text-red-400"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -404,47 +437,17 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
-              <p className="text-sm font-medium text-green-600">Upload successful!</p>
-              <button
-                type="button"
-                onClick={handleReset}
-                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                aria-label="Upload another file"
-              >
-                Upload Another File
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {validationError && (
-        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-md" role="alert" aria-live="assertive">
-          <div className="flex">
-            <svg
-              className="h-5 w-5 text-red-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">Validation Error</h3>
-              <p className="mt-1 text-sm text-red-700">{validationError.message}</p>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">Validation Error</h3>
+                <p className="mt-1 text-sm text-red-700">{validationError.message}</p>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
-  );
+        )}
+      </div>
+      <StatementsPanel key={uploadSuccess ? 'refreshed' : 'initial'} />
+    </>);
 };

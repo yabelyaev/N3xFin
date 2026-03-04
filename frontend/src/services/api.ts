@@ -99,6 +99,17 @@ class ApiService {
     return this.client.post('/categorization/categorize', { transactionIds });
   }
 
+  // Statement management endpoints
+  async deleteStatement(fileKey?: string) {
+    const params: Record<string, string> = {};
+    if (fileKey) {
+      params.fileKey = fileKey;
+    } else {
+      params.all = 'true';
+    }
+    return this.client.delete('/upload/files', { params });
+  }
+
   // Analytics endpoints
   async getAnalytics(type: string, startDate?: string, endDate?: string, granularity?: string) {
     if (isDemoMode()) {

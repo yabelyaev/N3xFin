@@ -302,18 +302,40 @@ class AnalyticsService:
         start_date: datetime,
         end_date: datetime
     ) -> List[Dict]:
-        """Query transactions within a date range."""
-        # Use PK and SK as per table schema
-        # PK format: USER#{user_id}
-        # SK format: TRANSACTION#{date}#{transaction_id}
-        response = self.transactions_table.query(
-            KeyConditionExpression=Key('PK').eq(f'USER#{user_id}') &
-                                 Key('SK').between(
-                                     f'TRANSACTION#{start_date.strftime("%Y-%m-%d")}',
-                                     f'TRANSACTION#{end_date.strftime("%Y-%m-%d")}~'  # ~ sorts after all dates
-                                 )
+        # Query all transactions for the user, filter by date attribute
+        start_str = start_date.strftime('%Y-%m-%d')
+        end_str = end_date.strftime('%Y-%m-%d')
+
+        def _query_all(filter_expr=None):
+            items = []
+            kwargs = dict(
+                KeyConditionExpression=Key('PK').eq(f'USER#{user_id}') &
+                                       Key('SK').begins_with('TRANSACTION#'),
+            )
+            if filter_expr is not None:
+                kwargs['FilterExpression'] = filter_expr
+            while True:
+                response = self.transactions_table.query(**kwargs)
+                items.extend(response.get('Items', []))
+                if 'LastEvaluatedKey' not in response:
+                    break
+                kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
+            return items
+
+        # Try date-filtered query first
+        from boto3.dynamodb.conditions import Attr as DynAttr
+        date_filter = (
+            DynAttr('date').between(start_str + 'T00:00:00', end_str + 'T23:59:59') |
+            DynAttr('date').between(start_str, end_str)
         )
-        return response.get('Items', [])
+        results = _query_all(date_filter)
+
+        # If nothing found, fall back to ALL transactions (handles older statements)
+        if not results:
+            print(f'Date-filtered query returned 0 results for {start_str}–{end_str}, falling back to all-time')
+            results = _query_all()
+
+        return results
     
     def _get_time_bucket(self, date: datetime, granularity: str) -> datetime:
         """Convert a date to a time bucket based on granularity."""

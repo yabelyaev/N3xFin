@@ -401,6 +401,35 @@ Resources:
             Path: /upload/files
             Method: GET
 
+  DeleteStatementFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: n3xfin-delete-statement
+      CodeUri: src/
+      Handler: upload.delete_statement.lambda_handler
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - s3:DeleteObject
+                - s3:ListBucket
+              Resource:
+                - !GetAtt DataBucket.Arn
+                - !Sub '${DataBucket.Arn}/*'
+            - Effect: Allow
+              Action:
+                - dynamodb:Query
+                - dynamodb:BatchWriteItem
+              Resource:
+                - !GetAtt TransactionsTable.Arn
+                - !Sub '${TransactionsTable.Arn}/index/*'
+      Events:
+        DeleteStatementApi:
+          Type: Api
+          Properties:
+            Path: /upload/files
+            Method: DELETE
+
   # Parser Lambda Functions
   ParseStatementFunction:
     Type: AWS::Serverless::Function

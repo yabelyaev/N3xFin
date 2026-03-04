@@ -6,7 +6,7 @@ import { apiService } from '../../services/api';
 import type { AnalyticsData } from '../../types/analytics';
 
 export const SpendingDashboard = () => {
-  const [timeRange, setTimeRange] = useState('1y');
+  const [timeRange, setTimeRange] = useState('all');
   const [chartType, setChartType] = useState<'pie' | 'bar'>('bar');
   const [sortBy, setSortBy] = useState<'amount' | 'name' | 'percentage'>('amount');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -198,13 +198,12 @@ export const SpendingDashboard = () => {
               <div key={category} className="flex items-center justify-between text-xs md:text-sm">
                 <span className="text-gray-600">{category}</span>
                 <span
-                  className={`font-medium ${
-                    trend.direction === 'increasing'
+                  className={`font-medium ${trend.direction === 'increasing'
                       ? 'text-red-600'
                       : trend.direction === 'decreasing'
-                      ? 'text-green-600'
-                      : 'text-gray-600'
-                  }`}
+                        ? 'text-green-600'
+                        : 'text-gray-600'
+                    }`}
                 >
                   {trend.direction === 'increasing' && '↑'}
                   {trend.direction === 'decreasing' && '↓'}
@@ -243,21 +242,19 @@ export const SpendingDashboard = () => {
             <div className="flex gap-2">
               <button
                 onClick={() => setChartType('bar')}
-                className={`px-3 py-1 rounded text-sm ${
-                  chartType === 'bar'
+                className={`px-3 py-1 rounded text-sm ${chartType === 'bar'
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-200 text-gray-700'
-                }`}
+                  }`}
               >
                 Bar
               </button>
               <button
                 onClick={() => setChartType('pie')}
-                className={`px-3 py-1 rounded text-sm ${
-                  chartType === 'pie'
+                className={`px-3 py-1 rounded text-sm ${chartType === 'pie'
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-200 text-gray-700'
-                }`}
+                  }`}
               >
                 Pie
               </button>

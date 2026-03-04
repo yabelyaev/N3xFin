@@ -86,5 +86,8 @@ CATEGORIES = [
     'Housing',
     'Income',
     'Savings',
+    'Loans & Debt',
+    'ATM & Cash',
+    'Transfers',
     'Other'
 ]

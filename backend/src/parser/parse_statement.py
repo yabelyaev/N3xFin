@@ -117,6 +117,27 @@ def _run_worker(event: Dict[str, Any], request_id: str) -> Dict[str, Any]:
         stored_count = parser_service.store_transactions(unique_transactions)
 
         print(f'Worker done: {stored_count} transactions stored for user {user_id}')
+
+        # Auto-trigger categorization async so categories are assigned immediately
+        if stored_count > 0:
+            try:
+                lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+                lambda_client.invoke(
+                    FunctionName='n3xfin-categorize-transactions',
+                    InvocationType='Event',
+                    Payload=json.dumps({
+                        'requestContext': {
+                            'authorizer': {
+                                'claims': {'sub': user_id}
+                            }
+                        },
+                        'body': json.dumps({'limit': 500}),
+                    }).encode('utf-8'),
+                )
+                print(f'Triggered categorization for user {user_id}')
+            except Exception as cat_err:
+                print(f'Warning: could not trigger categorization: {cat_err}')
+
         return {
             'status': 'complete',
             'totalTransactions': len(transactions),
