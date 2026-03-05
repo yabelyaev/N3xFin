@@ -4,18 +4,37 @@ import type { Anomaly } from '../../types/anomaly';
 
 
 // DynamoDB stores amounts as strings — parse safely
-const safeAmount = (value: string | number): number => {
+const safeAmount = (value: string | number | undefined): number => {
+  if (value === undefined || value === null) return 0;
   const n = typeof value === 'number' ? value : parseFloat(value);
   return isNaN(n) ? 0 : n;
 };
 
 // Handle ISO dates with or without timezone info
-const formatDate = (dateStr: string): string => {
+const formatDate = (dateStr: string | undefined): string => {
   if (!dateStr) return 'Unknown date';
-  // Append Z so Date parses it as UTC when no offset present
   const normalized = dateStr.includes('+') || dateStr.endsWith('Z') ? dateStr : dateStr + 'Z';
   const d = new Date(normalized);
   return isNaN(d.getTime()) ? 'Unknown date' : d.toLocaleDateString();
+};
+
+// Convert technical "N standard deviations" language into plain English
+const friendlyReason = (
+  amount: string | number | undefined,
+  category: string | undefined,
+  zScore: number | undefined,
+  expectedRange: { min: number; max: number }
+): string => {
+  const abs = Math.abs(safeAmount(amount));
+  const avg = Math.abs((expectedRange.min + expectedRange.max) / 2) || 1;
+  const mult = (abs / avg).toFixed(1);
+  const cat = category || 'this category';
+  const z = zScore ?? 0;
+
+  if (z >= 4) return `This charge is ${mult}× your usual ${cat} spend — much higher than normal.`;
+  if (z >= 3) return `This charge is ${mult}× your typical ${cat} spend — noticeably higher than usual.`;
+  if (z >= 2) return `This is a bit higher than your typical ${cat} purchases (about ${mult}× your average).`;
+  return `This charge looks slightly different from your usual ${cat} spending pattern.`;
 };
 
 export const AnomalyAlerts = () => {
@@ -152,8 +171,8 @@ export const AnomalyAlerts = () => {
                   </span>
                 </div>
 
-                <div className="mt-2 p-2 bg-white bg-opacity-50 rounded">
-                  <span className="font-medium">Reason:</span> {anomaly.reason}
+                <div className="mt-2 p-2 bg-white bg-opacity-50 rounded text-sm">
+                  {friendlyReason(anomaly.transaction?.amount, anomaly.transaction?.category, anomaly.zScore, anomaly.expectedRange)}
                 </div>
               </div>
             </div>
