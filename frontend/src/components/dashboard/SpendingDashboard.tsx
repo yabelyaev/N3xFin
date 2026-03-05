@@ -13,10 +13,33 @@ export const SpendingDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
+  // Track whether the user has ANY data at all (vs just an empty date range)
+  const [hasAnyData, setHasAnyData] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    // On mount, check if the user has any data at all (all-time query)
+    checkHasAnyData();
+  }, []);
 
   useEffect(() => {
     loadAnalytics();
   }, [timeRange]);
+
+  const checkHasAnyData = async () => {
+    try {
+      const fiveYearsAgo = new Date();
+      fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5);
+      const response = await apiService.getAnalytics(
+        'category',
+        fiveYearsAgo.toISOString().split('T')[0],
+        new Date().toISOString().split('T')[0]
+      );
+      const data = response.data.data || [];
+      setHasAnyData(data.length > 0 || (response.data.totalSpending || 0) > 0);
+    } catch {
+      setHasAnyData(false);
+    }
+  };
 
   const loadAnalytics = async () => {
     try {
@@ -103,8 +126,10 @@ export const SpendingDashboard = () => {
   const totalSpending = analyticsData?.totalSpending || 0;
   const trends = analyticsData?.trends || {};
 
-  // Check if this is a new user with no data (not an error)
-  const hasNoData = !loading && !error && categoryData.length === 0 && totalSpending === 0;
+  // Only show welcome screen when user has never uploaded any data
+  const hasNoData = !loading && !error && hasAnyData === false && categoryData.length === 0 && totalSpending === 0;
+  // Show "no data in this range" message when user has data but selected range is empty
+  const hasNoDataInRange = !loading && !error && hasAnyData === true && categoryData.length === 0 && totalSpending === 0;
 
   if (error) {
     return (
@@ -120,7 +145,7 @@ export const SpendingDashboard = () => {
     );
   }
 
-  // Show welcome message for new users
+  // Show welcome message for new users (truly no data at all)
   if (hasNoData) {
     return (
       <div className="bg-white rounded-lg shadow p-8 text-center">
@@ -158,6 +183,31 @@ export const SpendingDashboard = () => {
           </div>
         </div>
       </div>
+    );
+  }
+
+  // Show "no data in this range" when user has data but selected period is empty
+  if (hasNoDataInRange) {
+    return (
+      <>
+        <div className="bg-white rounded-lg shadow p-4 md:p-6">
+          <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-4">Time Range</h3>
+          <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
+        </div>
+        <div className="bg-white rounded-lg shadow p-8 text-center">
+          <div className="text-4xl mb-3">📅</div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">No transactions in this period</h3>
+          <p className="text-gray-500 text-sm mb-4">
+            Your statements don't have data for this time range. Try selecting a wider range.
+          </p>
+          <button
+            onClick={() => setTimeRange('all')}
+            className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-lg transition-colors text-sm"
+          >
+            View All Time
+          </button>
+        </div>
+      </>
     );
   }
 
@@ -199,10 +249,10 @@ export const SpendingDashboard = () => {
                 <span className="text-gray-600">{category}</span>
                 <span
                   className={`font-medium ${trend.direction === 'increasing'
-                      ? 'text-red-600'
-                      : trend.direction === 'decreasing'
-                        ? 'text-green-600'
-                        : 'text-gray-600'
+                    ? 'text-red-600'
+                    : trend.direction === 'decreasing'
+                      ? 'text-green-600'
+                      : 'text-gray-600'
                     }`}
                 >
                   {trend.direction === 'increasing' && '↑'}
@@ -243,8 +293,8 @@ export const SpendingDashboard = () => {
               <button
                 onClick={() => setChartType('bar')}
                 className={`px-3 py-1 rounded text-sm ${chartType === 'bar'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-200 text-gray-700'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-200 text-gray-700'
                   }`}
               >
                 Bar
@@ -252,8 +302,8 @@ export const SpendingDashboard = () => {
               <button
                 onClick={() => setChartType('pie')}
                 className={`px-3 py-1 rounded text-sm ${chartType === 'pie'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-200 text-gray-700'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-200 text-gray-700'
                   }`}
               >
                 Pie
