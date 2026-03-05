@@ -1,11 +1,82 @@
 import { useState, useEffect } from 'react';
 import { apiService } from '../../services/api';
-import type { Recommendation } from '../../types/recommendation';
+import type { Recommendation, CategoryTrendPoint } from '../../types/recommendation';
 
+// ─── Mini bar chart for category drill-down ───────────────────────────────────
+const CategoryTrendChart = ({ trends }: { trends: CategoryTrendPoint[] }) => {
+  if (!trends || trends.length === 0) return null;
+
+  const max = Math.max(...trends.map(t => t.amount), 1);
+  const avg = trends.slice(0, -1).reduce((s, t) => s + t.amount, 0) / Math.max(trends.length - 1, 1);
+  const latestMonth = trends[trends.length - 1]?.month;
+
+  return (
+    <div className="mt-4 bg-white rounded-xl border border-gray-200 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Month-by-month spend</span>
+        <span className="text-xs text-gray-400">avg (prior months): ${avg.toFixed(0)}</span>
+      </div>
+      <div className="flex items-end gap-2 h-24">
+        {trends.map((point, i) => {
+          const isLatest = point.month === latestMonth;
+          const heightPct = (point.amount / max) * 100;
+          return (
+            <div key={i} className="flex-1 flex flex-col items-center gap-1 min-w-0">
+              <span className="text-xs text-gray-500 font-medium">${point.amount.toFixed(0)}</span>
+              <div className="w-full flex flex-col justify-end" style={{ height: '60px' }}>
+                <div
+                  className={`w-full rounded-t-sm transition-all ${isLatest ? 'bg-red-400' : 'bg-blue-300'
+                    }`}
+                  style={{ height: `${heightPct}%` }}
+                  title={`${point.month}: $${point.amount.toFixed(2)}`}
+                />
+              </div>
+              <span className={`text-xs truncate w-full text-center ${isLatest ? 'font-bold text-red-600' : 'text-gray-400'}`}>
+                {point.month.split(' ')[0]}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      {/* Average line label */}
+      <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
+        <span className="inline-block w-6 h-px bg-blue-400 border-t border-dashed border-blue-400" />
+        <span>Prior months average</span>
+        <span className="ml-4 inline-block w-3 h-3 rounded-sm bg-red-400 inline-block" />
+        <span>Latest (spike)</span>
+      </div>
+    </div>
+  );
+};
+
+// ─── Priority badge helpers ───────────────────────────────────────────────────
+const getPriorityColor = (priority: number, isSpike?: boolean) => {
+  if (isSpike) return 'border-orange-300 bg-orange-50';
+  if (priority >= 8) return 'border-red-300 bg-red-50';
+  if (priority >= 5) return 'border-yellow-300 bg-yellow-50';
+  return 'border-blue-300 bg-blue-50';
+};
+
+const getPriorityBadge = (priority: number, isSpike?: boolean) => {
+  if (isSpike) return 'bg-orange-500 text-white';
+  if (priority >= 8) return 'bg-red-600 text-white';
+  if (priority >= 5) return 'bg-yellow-600 text-white';
+  return 'bg-blue-600 text-white';
+};
+
+const getPriorityLabel = (priority: number, isSpike?: boolean) => {
+  if (isSpike) return '⚠️ Spending Spike';
+  if (priority >= 8) return 'High Priority';
+  if (priority >= 5) return 'Medium Priority';
+  return 'Low Priority';
+};
+
+// ─── Main component ───────────────────────────────────────────────────────────
 export const SavingsRecommendations = () => {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     loadRecommendations();
@@ -24,28 +95,10 @@ export const SavingsRecommendations = () => {
     }
   };
 
-  const getPriorityColor = (priority: number) => {
-    if (priority >= 8) return 'border-red-300 bg-red-50';
-    if (priority >= 5) return 'border-yellow-300 bg-yellow-50';
-    return 'border-blue-300 bg-blue-50';
-  };
-
-  const getPriorityBadge = (priority: number) => {
-    if (priority >= 8) return 'bg-red-600 text-white';
-    if (priority >= 5) return 'bg-yellow-600 text-white';
-    return 'bg-blue-600 text-white';
-  };
-
-  const getPriorityLabel = (priority: number) => {
-    if (priority >= 8) return 'High Priority';
-    if (priority >= 5) return 'Medium Priority';
-    return 'Low Priority';
-  };
-
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-32">
-        <div className="text-gray-600">Loading recommendations...</div>
+      <div className="flex flex-col items-center justify-center h-32 gap-2">
+        <div className="text-gray-500 text-sm animate-pulse">Your advisor is reviewing your spending…</div>
       </div>
     );
   }
@@ -54,10 +107,7 @@ export const SavingsRecommendations = () => {
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-4">
         <p className="text-red-800">{error}</p>
-        <button
-          onClick={loadRecommendations}
-          className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
-        >
+        <button onClick={loadRecommendations} className="mt-2 text-sm text-red-600 hover:text-red-800 underline">
           Try again
         </button>
       </div>
@@ -67,93 +117,118 @@ export const SavingsRecommendations = () => {
   if (recommendations.length === 0) {
     return (
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
-        <div className="text-gray-800 font-medium">No recommendations available</div>
-        <p className="text-sm text-gray-600 mt-1">
-          We need more transaction data to generate personalized recommendations
-        </p>
+        <div className="text-gray-800 font-medium">No recommendations yet</div>
+        <p className="text-sm text-gray-600 mt-1">Upload a few months of statements to get personalised advice.</p>
       </div>
     );
   }
 
-  const totalPotentialSavings = recommendations.reduce(
-    (sum, rec) => sum + rec.potentialSavings,
-    0
-  );
+  const totalPotentialSavings = recommendations
+    .filter(r => !r.isSpike && r.potentialSavings > 0 && r.category.toLowerCase() !== 'savings')
+    .reduce((sum, rec) => sum + rec.potentialSavings, 0);
 
   return (
     <div className="space-y-6">
-      {/* Total Potential Savings */}
-      <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-6 text-white">
-        <h3 className="text-lg font-semibold mb-2">Total Potential Savings</h3>
-        <div className="text-4xl font-bold">
-          ${totalPotentialSavings.toFixed(2)}
-          <span className="text-lg font-normal ml-2">per month</span>
+      {/* Header banner */}
+      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl p-6 text-white shadow">
+        <div className="flex items-start justify-between">
+          <div>
+            <h3 className="text-lg font-semibold mb-1">Your Financial Advisor</h3>
+            <p className="text-indigo-200 text-sm">
+              Based on up to 6 months of your spending data
+            </p>
+          </div>
+          <div className="text-right">
+            <div className="text-xs text-indigo-300 mb-1">Potential monthly savings</div>
+            <div className="text-3xl font-bold">${totalPotentialSavings.toFixed(2)}</div>
+          </div>
         </div>
-        <p className="text-sm mt-2 text-green-100">
-          Based on {recommendations.length} personalized recommendation{recommendations.length !== 1 ? 's' : ''}
-        </p>
       </div>
 
-      {/* Recommendations List */}
+      {/* Cards */}
       <div className="space-y-4">
-        {recommendations.map((rec, index) => (
-          <div
-            key={rec.id}
-            className={`border rounded-lg p-5 ${getPriorityColor(rec.priority)}`}
-          >
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white text-gray-700 font-bold text-sm">
-                  {index + 1}
-                </div>
-                <div>
-                  <h4 className="font-semibold text-gray-900 text-lg">
-                    {rec.title}
-                  </h4>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${getPriorityBadge(rec.priority)}`}>
-                      {getPriorityLabel(rec.priority)}
-                    </span>
-                    <span className="text-sm text-gray-600">{rec.category}</span>
+        {recommendations.map((rec, index) => {
+          const hasTrends = rec.isSpike && rec.categoryTrends && rec.categoryTrends.length > 0;
+          const isExpanded = expandedId === rec.id;
+
+          return (
+            <div
+              key={rec.id}
+              className={`border rounded-xl p-5 transition-all ${getPriorityColor(rec.priority, rec.isSpike)}`}
+            >
+              {/* Card header */}
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-white text-gray-700 font-bold text-sm shadow-sm">
+                    {index + 1}
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="font-semibold text-gray-900 text-base leading-snug">
+                      {rec.title}
+                    </h4>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${getPriorityBadge(rec.priority, rec.isSpike)}`}>
+                        {getPriorityLabel(rec.priority, rec.isSpike)}
+                      </span>
+                      <span className="text-xs text-gray-500">{rec.category}</span>
+                    </div>
                   </div>
                 </div>
+
+                {rec.potentialSavings > 0 && (
+                  <div className="text-right flex-shrink-0 ml-4">
+                    <div className="text-xs text-gray-500">
+                      {rec.isSpike ? 'Extra spent' : 'Potential savings'}
+                    </div>
+                    <div className={`text-xl font-bold ${rec.isSpike ? 'text-orange-600' : 'text-green-700'}`}>
+                      ${rec.potentialSavings.toFixed(2)}
+                    </div>
+                    <div className="text-xs text-gray-400">per month</div>
+                  </div>
+                )}
               </div>
-              
-              <div className="text-right">
-                <div className="text-sm text-gray-600">Potential Savings</div>
-                <div className="text-2xl font-bold text-green-700">
-                  ${rec.potentialSavings.toFixed(2)}
+
+              {/* Description */}
+              <p className="text-gray-700 text-sm mb-4 leading-relaxed">{rec.description}</p>
+
+              {/* Action items */}
+              {rec.actionItems && rec.actionItems.length > 0 && (
+                <div className="bg-white bg-opacity-70 rounded-lg p-3 mb-3">
+                  <h5 className="font-medium text-gray-800 text-xs uppercase tracking-wide mb-2">Action Steps</h5>
+                  <ul className="space-y-1.5">
+                    {rec.actionItems.map((action, i) => (
+                      <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
+                        <span className="text-green-500 font-bold mt-0.5 flex-shrink-0">→</span>
+                        <span>{action}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                <div className="text-xs text-gray-500">per month</div>
-              </div>
+              )}
+
+              {/* Drill-down toggle */}
+              {hasTrends && (
+                <button
+                  onClick={() => setExpandedId(isExpanded ? null : rec.id)}
+                  className="text-sm font-medium text-orange-600 hover:text-orange-800 flex items-center gap-1 transition-colors"
+                >
+                  {isExpanded ? '▲ Hide month-by-month' : '▼ See month-by-month breakdown'}
+                </button>
+              )}
+
+              {/* Trend chart */}
+              {hasTrends && isExpanded && (
+                <CategoryTrendChart trends={rec.categoryTrends!} />
+              )}
             </div>
-            
-            <p className="text-gray-700 mb-4">
-              {rec.description}
-            </p>
-            
-            {/* Action Items */}
-            {rec.actionItems && rec.actionItems.length > 0 && (
-              <div className="bg-white bg-opacity-60 rounded-lg p-4">
-                <h5 className="font-medium text-gray-900 text-sm mb-2">
-                  Action Items:
-                </h5>
-                <ul className="space-y-2">
-                  {rec.actionItems.map((action, actionIndex) => (
-                    <li
-                      key={actionIndex}
-                      className="text-sm text-gray-700 flex items-start gap-2"
-                    >
-                      <span className="text-green-600 font-bold mt-0.5">✓</span>
-                      <span>{action}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
+
+      {/* Disclaimer */}
+      <p className="text-xs text-gray-400 text-center">
+        Recommendations are generated by AI and are for informational purposes only. Always consult a qualified financial advisor before making major financial decisions.
+      </p>
     </div>
   );
 };
