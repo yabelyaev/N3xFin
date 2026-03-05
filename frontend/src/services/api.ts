@@ -162,11 +162,18 @@ class ApiService {
   }
 
   // Report endpoints
-  async generateReport(month?: string) {
+  async listReports() {
     if (isDemoMode()) {
       return demoModeService.getReports();
     }
-    return this.client.post('/reports/generate', { month });
+    return this.client.get('/reports/generate?action=list');
+  }
+
+  async generateReport(year: number, month: number) {
+    if (isDemoMode()) {
+      return demoModeService.getReports();
+    }
+    return this.client.post('/reports/generate', { year, month });
   }
 
   async getReport(reportId: string) {
