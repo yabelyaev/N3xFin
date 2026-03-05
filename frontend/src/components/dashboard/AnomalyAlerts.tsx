@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { apiService } from '../../services/api';
 import type { Anomaly } from '../../types/anomaly';
 
+
 // DynamoDB stores amounts as strings — parse safely
 const safeAmount = (value: string | number): number => {
   const n = typeof value === 'number' ? value : parseFloat(value);
@@ -22,6 +23,9 @@ export const AnomalyAlerts = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submittingFeedback, setSubmittingFeedback] = useState<string | null>(null);
+  // Local feedback state because backend does not return it on anomaly objects
+  const [feedbackMap, setFeedbackMap] = useState<Record<string, 'legitimate' | 'fraudulent'>>({});
+
 
   useEffect(() => {
     loadAnomalies();
@@ -40,19 +44,12 @@ export const AnomalyAlerts = () => {
     }
   };
 
-  const handleFeedback = async (transactionId: string, isLegitimate: boolean) => {
+  const handleFeedback = async (transactionId: string | undefined, isLegitimate: boolean) => {
+    if (!transactionId) return;
     try {
       setSubmittingFeedback(transactionId);
       await apiService.submitAnomalyFeedback(transactionId, isLegitimate);
-
-      // Update local state
-      setAnomalies(prev =>
-        prev.map(anomaly =>
-          anomaly.transactionId === transactionId
-            ? { ...anomaly, userFeedback: isLegitimate ? 'legitimate' : 'fraudulent' }
-            : anomaly
-        )
-      );
+      setFeedbackMap(prev => ({ ...prev, [transactionId]: isLegitimate ? 'legitimate' : 'fraudulent' }));
     } catch (err: any) {
       setError(err.response?.data?.error?.message || 'Failed to submit feedback');
     } finally {
@@ -133,19 +130,19 @@ export const AnomalyAlerts = () => {
                   {anomaly.severity.toUpperCase()}
                 </span>
                 <span className="text-sm text-gray-600">
-                  {formatDate(anomaly.date)}
+                  {formatDate(anomaly.transaction?.date)}
                 </span>
               </div>
 
               <h4 className="font-semibold text-gray-900 mb-1">
-                {anomaly.description}
+                {anomaly.transaction?.description}
               </h4>
 
               <div className="text-sm space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="font-medium">Amount:</span>
-                  <span className="text-lg font-bold">${safeAmount(anomaly.amount).toFixed(2)}</span>
-                  <span className="text-gray-600">({anomaly.category})</span>
+                  <span className="text-lg font-bold">${safeAmount(anomaly.transaction?.amount).toFixed(2)}</span>
+                  <span className="text-gray-600">({anomaly.transaction?.category})</span>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -163,23 +160,23 @@ export const AnomalyAlerts = () => {
           </div>
 
           {/* Feedback buttons */}
-          {!anomaly.userFeedback ? (
+          {!feedbackMap[anomaly.transaction?.id] ? (
             <div className="mt-4 pt-4 border-t border-current border-opacity-20">
               <p className="text-sm font-medium mb-2">Is this transaction legitimate?</p>
               <div className="flex gap-2">
                 <button
-                  onClick={() => handleFeedback(anomaly.transactionId, true)}
-                  disabled={submittingFeedback === anomaly.transactionId}
+                  onClick={() => handleFeedback(anomaly.transaction?.id, true)}
+                  disabled={submittingFeedback === anomaly.transaction?.id}
                   className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 text-sm font-medium"
                 >
-                  {submittingFeedback === anomaly.transactionId ? 'Submitting...' : 'Yes, Legitimate'}
+                  {submittingFeedback === anomaly.transaction?.id ? 'Submitting...' : 'Yes, Legitimate'}
                 </button>
                 <button
-                  onClick={() => handleFeedback(anomaly.transactionId, false)}
-                  disabled={submittingFeedback === anomaly.transactionId}
+                  onClick={() => handleFeedback(anomaly.transaction?.id, false)}
+                  disabled={submittingFeedback === anomaly.transaction?.id}
                   className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 text-sm font-medium"
                 >
-                  {submittingFeedback === anomaly.transactionId ? 'Submitting...' : 'No, Fraudulent'}
+                  {submittingFeedback === anomaly.transaction?.id ? 'Submitting...' : 'No, Fraudulent'}
                 </button>
               </div>
             </div>
@@ -187,8 +184,8 @@ export const AnomalyAlerts = () => {
             <div className="mt-4 pt-4 border-t border-current border-opacity-20">
               <p className="text-sm">
                 <span className="font-medium">Your feedback:</span>{' '}
-                <span className={anomaly.userFeedback === 'legitimate' ? 'text-green-700' : 'text-red-700'}>
-                  {anomaly.userFeedback === 'legitimate' ? 'Marked as legitimate' : 'Marked as fraudulent'}
+                <span className={feedbackMap[anomaly.transaction?.id] === 'legitimate' ? 'text-green-700' : 'text-red-700'}>
+                  {feedbackMap[anomaly.transaction?.id] === 'legitimate' ? 'Marked as legitimate' : 'Marked as fraudulent'}
                 </span>
               </p>
             </div>
