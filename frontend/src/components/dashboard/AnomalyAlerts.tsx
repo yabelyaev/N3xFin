@@ -2,6 +2,21 @@ import { useState, useEffect } from 'react';
 import { apiService } from '../../services/api';
 import type { Anomaly } from '../../types/anomaly';
 
+// DynamoDB stores amounts as strings — parse safely
+const safeAmount = (value: string | number): number => {
+  const n = typeof value === 'number' ? value : parseFloat(value);
+  return isNaN(n) ? 0 : n;
+};
+
+// Handle ISO dates with or without timezone info
+const formatDate = (dateStr: string): string => {
+  if (!dateStr) return 'Unknown date';
+  // Append Z so Date parses it as UTC when no offset present
+  const normalized = dateStr.includes('+') || dateStr.endsWith('Z') ? dateStr : dateStr + 'Z';
+  const d = new Date(normalized);
+  return isNaN(d.getTime()) ? 'Unknown date' : d.toLocaleDateString();
+};
+
 export const AnomalyAlerts = () => {
   const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,7 +44,7 @@ export const AnomalyAlerts = () => {
     try {
       setSubmittingFeedback(transactionId);
       await apiService.submitAnomalyFeedback(transactionId, isLegitimate);
-      
+
       // Update local state
       setAnomalies(prev =>
         prev.map(anomaly =>
@@ -118,28 +133,28 @@ export const AnomalyAlerts = () => {
                   {anomaly.severity.toUpperCase()}
                 </span>
                 <span className="text-sm text-gray-600">
-                  {new Date(anomaly.date).toLocaleDateString()}
+                  {formatDate(anomaly.date)}
                 </span>
               </div>
-              
+
               <h4 className="font-semibold text-gray-900 mb-1">
                 {anomaly.description}
               </h4>
-              
+
               <div className="text-sm space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="font-medium">Amount:</span>
-                  <span className="text-lg font-bold">${Math.abs(anomaly.amount).toFixed(2)}</span>
+                  <span className="text-lg font-bold">${safeAmount(anomaly.amount).toFixed(2)}</span>
                   <span className="text-gray-600">({anomaly.category})</span>
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                   <span className="font-medium">Expected range:</span>
                   <span>
                     ${anomaly.expectedRange.min.toFixed(2)} - ${anomaly.expectedRange.max.toFixed(2)}
                   </span>
                 </div>
-                
+
                 <div className="mt-2 p-2 bg-white bg-opacity-50 rounded">
                   <span className="font-medium">Reason:</span> {anomaly.reason}
                 </div>
