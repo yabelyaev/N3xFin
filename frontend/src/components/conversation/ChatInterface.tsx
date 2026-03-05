@@ -18,7 +18,7 @@ export const ChatInterface = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!inputValue.trim() || loading) {
       return;
     }
@@ -38,12 +38,15 @@ export const ChatInterface = () => {
 
     try {
       const response = await apiService.askQuestion(userMessage.content);
-      
+
       const assistantMessage: Message = {
         id: `assistant-${Date.now()}`,
         role: 'assistant',
         content: response.data.answer,
-        timestamp: new Date(response.data.timestamp),
+        // Backend returns bare ISO string without timezone — append Z so browsers parse as UTC
+        timestamp: response.data.timestamp
+          ? new Date(response.data.timestamp.endsWith('Z') ? response.data.timestamp : response.data.timestamp + 'Z')
+          : new Date(),
       };
 
       setMessages(prev => [...prev, assistantMessage]);
@@ -58,10 +61,9 @@ export const ChatInterface = () => {
       const errorResponse: Message = {
         id: `assistant-${Date.now()}`,
         role: 'assistant',
-        content: isUnanswerable 
-          ? `I'm sorry, I cannot answer that question with the available data. ${errorMessage}${
-              suggestedQuestions ? `\n\nYou might try asking:\n${suggestedQuestions.map((q: string) => `• ${q}`).join('\n')}` : ''
-            }`
+        content: isUnanswerable
+          ? `I'm sorry, I cannot answer that question with the available data. ${errorMessage}${suggestedQuestions ? `\n\nYou might try asking:\n${suggestedQuestions.map((q: string) => `• ${q}`).join('\n')}` : ''
+          }`
           : `Error: ${errorMessage}`,
         timestamp: new Date(),
       };
@@ -72,11 +74,10 @@ export const ChatInterface = () => {
     }
   };
 
-  const formatTime = (date: Date) => {
-    return new Date(date).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
+  const formatTime = (date: Date | string | undefined) => {
+    const d = date instanceof Date ? date : date ? new Date(String(date).endsWith('Z') ? date : date + 'Z') : new Date();
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   };
 
   return (
@@ -107,17 +108,15 @@ export const ChatInterface = () => {
               className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-[85%] sm:max-w-[80%] rounded-lg px-3 sm:px-4 py-2 sm:py-3 ${
-                  message.role === 'user'
+                className={`max-w-[85%] sm:max-w-[80%] rounded-lg px-3 sm:px-4 py-2 sm:py-3 ${message.role === 'user'
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-900'
-                }`}
+                  }`}
               >
                 <div className="whitespace-pre-wrap break-words text-sm sm:text-base">{message.content}</div>
                 <div
-                  className={`text-xs mt-1 sm:mt-2 ${
-                    message.role === 'user' ? 'text-blue-100' : 'text-gray-500'
-                  }`}
+                  className={`text-xs mt-1 sm:mt-2 ${message.role === 'user' ? 'text-blue-100' : 'text-gray-500'
+                    }`}
                 >
                   {formatTime(message.timestamp)}
                 </div>
@@ -125,7 +124,7 @@ export const ChatInterface = () => {
             </div>
           ))
         )}
-        
+
         {loading && (
           <div className="flex justify-start">
             <div className="bg-gray-100 rounded-lg px-3 sm:px-4 py-2 sm:py-3">
@@ -137,7 +136,7 @@ export const ChatInterface = () => {
             </div>
           </div>
         )}
-        
+
         <div ref={messagesEndRef} />
       </div>
 
@@ -148,7 +147,7 @@ export const ChatInterface = () => {
             <p className="text-xs sm:text-sm text-red-800">{error}</p>
           </div>
         )}
-        
+
         <form onSubmit={handleSubmit} className="flex gap-2">
           <input
             type="text"
