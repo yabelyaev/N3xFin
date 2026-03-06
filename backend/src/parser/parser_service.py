@@ -308,16 +308,26 @@ class ParserService:
         Returns:
             List of transactions
         """
+        import json
+
         prompt = f"""Analyze this bank statement text and extract all transactions.
 
     Bank Statement Text:
     {text[:10000]}  
 
     For each transaction, provide:
-    - date: Transaction date in YYYY-MM-DD format (IMPORTANT: For dates like "10/18" or "11/01", interpret as MM/DD and use 2024 as the year unless the statement clearly shows a different year)
-    - description: Transaction description/merchant name
-    - amount: Transaction amount (negative for debits/expenses, positive for credits/deposits)
-    - balance: Account balance after transaction (if visible)
+    - date: Transaction date in YYYY-MM-DD format
+      * For dates like "10/18", "11/01", or "12-25": interpret as MM/DD and use 2024 as the year
+      * For dates like "18/10/2024" or "18-10-2024": interpret as DD/MM/YYYY
+      * For dates like "2024-10-18": use as-is (YYYY-MM-DD)
+      * For dates like "Oct 18" or "18 Oct": use 2024 as the year
+      * If the statement header shows a different year (like "November 2023"), use that year instead
+    - description: Transaction description/merchant name (clean, without extra symbols)
+    - amount: Transaction amount as a number
+      * Negative for debits/withdrawals/expenses/payments
+      * Positive for credits/deposits/income/refunds
+      * Remove currency symbols, commas, and parentheses
+    - balance: Account balance after transaction (if visible, otherwise omit)
 
     Return ONLY a valid JSON array with this exact structure:
     [
@@ -331,17 +341,20 @@ class ParserService:
 
     Rules:
     - Extract ALL transactions visible in the text
-    - Use negative amounts for debits/withdrawals/expenses
-    - Use positive amounts for credits/deposits
-    - For dates in MM/DD format, use 2024 as the year
-    - If balance is not visible, omit the balance field
+    - Use negative amounts for money going out (debits, purchases, withdrawals, fees)
+    - Use positive amounts for money coming in (deposits, refunds, salary, transfers in)
+    - Clean up descriptions: remove extra spaces, special characters, transaction codes
+    - For ambiguous dates, prefer MM/DD format unless context clearly indicates DD/MM
+    - If you see a statement period (e.g., "Statement Period: Nov 1 - Nov 30, 2024"), use that year
+    - Skip header rows, totals, and summary lines - only extract actual transactions
+    - If balance is not visible or unclear, omit the balance field entirely
     - Return empty array [] if no transactions found
-    - Return ONLY the JSON array, no other text"""
+    - Return ONLY the JSON array, no explanatory text before or after"""
 
         try:
             # Call Claude 3 Sonnet
             response = self.bedrock.invoke_model(
-                modelId=config.BEDROCK_MODEL_ID,
+                modelId='anthropic.claude-3-sonnet-20240229-v1:0',
                 body=json.dumps({
                     "anthropic_version": "bedrock-2023-05-31",
                     "max_tokens": 4096,
@@ -358,44 +371,19 @@ class ParserService:
             response_body = json.loads(response['body'].read())
             content = response_body['content'][0]['text']
 
-            print(f'--- RAW LLM RESPONSE START ---')
-            print(content)
-            print(f'--- RAW LLM RESPONSE END ---')
+            # Extract JSON from response
+            content = content.strip()
+            if content.startswith('```'):
+                lines = content.split('\n')
+                content = '\n'.join(lines[1:-1]) if len(lines) > 2 else content
+                content = content.replace('```json', '').replace('```', '').strip()
 
-            # Try multiple strategies to find the JSON array
-            transactions_data = None
-
-            # Strategy 1: strip fenced code block
-            cleaned = content.strip()
-            if cleaned.startswith('```'):
-                lines = cleaned.split('\n')
-                cleaned = '\n'.join(lines[1:-1]) if len(lines) > 2 else cleaned
-                cleaned = cleaned.replace('```json', '').replace('```', '').strip()
-
-            # Strategy 2: extract first [...] block with regex
-            import re
-            json_match = re.search(r'\[.*\]', cleaned, re.DOTALL)
-            if json_match:
-                cleaned = json_match.group(0)
-
-            try:
-                transactions_data = json.loads(cleaned)
-            except json.JSONDecodeError as jde:
-                print(f'Failed to parse LLM JSON: {str(jde)}')
-                print(f'Cleaned content was: {cleaned}')
-                raise ProcessingError(
-                    f'LLM returned invalid JSON: {str(jde)}',
-                    {'file': source_file}
-                )
+            # Parse transactions
+            transactions_data = json.loads(content)
 
             if not isinstance(transactions_data, list):
-                print(f'Warning: LLM returned non-list response: {type(transactions_data)}')
-                raise ProcessingError(
-                    'LLM returned unexpected data type (not a list)',
-                    {'file': source_file}
-                )
-
-            print(f'LLM returned {len(transactions_data)} raw transaction records')
+                print(f'Warning: LLM returned non-list response')
+                return []
 
             # Convert to Transaction objects
             transactions = []
@@ -413,27 +401,20 @@ class ParserService:
                         balance=float(tx_data['balance']) if 'balance' in tx_data else None,
                         sourceFile=source_file,
                         rawData=json.dumps(tx_data),
-                        createdAt=datetime.now(UTC)
+                        createdAt=datetime.utcnow()
                     )
                     transactions.append(transaction)
 
                 except Exception as e:
-                    print(f'Warning: Failed to parse LLM transaction entry: {str(e)}, data: {tx_data}')
+                    print(f'Warning: Failed to parse LLM transaction: {str(e)}')
                     continue
 
-            print(f'Successfully converted {len(transactions)} transactions from LLM response')
             return transactions
 
-        except ProcessingError:
-            raise
         except Exception as e:
-            import traceback
-            print(f'LLM extraction failed with unexpected error: {str(e)}')
-            traceback.print_exc()
-            raise ProcessingError(
-                f'LLM extraction failed: {str(e)}',
-                {'file': source_file}
-            )
+            print(f'Warning: LLM extraction failed: {str(e)}')
+            return []
+
 
 
 

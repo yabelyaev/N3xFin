@@ -2,6 +2,7 @@
 import axios, { type AxiosInstance } from 'axios';
 import { isDemoMode, demoModeService } from './demoMode';
 import { API_BASE_URL } from '../config/aws-config';
+import { cache, CACHE_TTL } from '../utils/cache';
 
 class ApiService {
   private client: AxiosInstance;
@@ -56,6 +57,15 @@ class ApiService {
     this.client.defaults.baseURL = url;
   }
 
+  // Cache management
+  clearCache() {
+    cache.clearAll();
+  }
+
+  clearAnalyticsCache() {
+    cache.clearPattern('analytics:');
+  }
+
   // Auth endpoints
   async register(email: string, password: string) {
     return this.client.post('/auth/register', { email, password });
@@ -91,7 +101,15 @@ class ApiService {
 
   // Parser endpoints
   async parseStatement(key: string) {
-    return this.client.post('/parser/parse', { key });
+    const response = await this.client.post('/parser/parse', { key });
+    
+    // Clear all caches when new data is uploaded
+    cache.clearPattern('analytics:');
+    cache.clearPattern('predictions');
+    cache.clearPattern('recommendations');
+    cache.clearPattern('alerts');
+    
+    return response;
   }
 
   // Categorization endpoints
@@ -115,9 +133,25 @@ class ApiService {
     if (isDemoMode()) {
       return demoModeService.getAnalytics(type);
     }
-    return this.client.get('/analytics', {
+    
+    // Create cache key
+    const cacheKey = `analytics:${type}:${startDate}:${endDate}:${granularity}`;
+    
+    // Check cache first
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      return { data: cached };
+    }
+    
+    // Fetch from API
+    const response = await this.client.get('/analytics', {
       params: { type, startDate, endDate, granularity },
     });
+    
+    // Cache the result
+    cache.set(cacheKey, response.data, CACHE_TTL.ANALYTICS);
+    
+    return response;
   }
 
   async submitAnomalyFeedback(transactionId: string, isLegitimate: boolean) {
@@ -135,14 +169,46 @@ class ApiService {
     if (isDemoMode()) {
       return demoModeService.getPredictions();
     }
-    return this.client.get('/predictions', { params: { horizon } });
+    
+    // Create cache key
+    const cacheKey = `predictions:${horizon}`;
+    
+    // Check cache first
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      return { data: cached };
+    }
+    
+    // Fetch from API
+    const response = await this.client.get('/predictions', { params: { horizon } });
+    
+    // Cache the result
+    cache.set(cacheKey, response.data, CACHE_TTL.PREDICTIONS);
+    
+    return response;
   }
 
   async getAlerts() {
     if (isDemoMode()) {
       return demoModeService.getAnomalies();
     }
-    return this.client.get('/predictions/alerts');
+    
+    // Create cache key
+    const cacheKey = 'alerts';
+    
+    // Check cache first
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      return { data: cached };
+    }
+    
+    // Fetch from API
+    const response = await this.client.get('/predictions/alerts');
+    
+    // Cache the result
+    cache.set(cacheKey, response.data, CACHE_TTL.PREDICTIONS);
+    
+    return response;
   }
 
   // Recommendation endpoints
@@ -150,7 +216,23 @@ class ApiService {
     if (isDemoMode()) {
       return demoModeService.getRecommendations();
     }
-    return this.client.get('/recommendations');
+    
+    // Create cache key
+    const cacheKey = 'recommendations';
+    
+    // Check cache first
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      return { data: cached };
+    }
+    
+    // Fetch from API
+    const response = await this.client.get('/recommendations');
+    
+    // Cache the result
+    cache.set(cacheKey, response.data, CACHE_TTL.RECOMMENDATIONS);
+    
+    return response;
   }
 
   // Conversation endpoints

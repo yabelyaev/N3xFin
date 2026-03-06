@@ -19,6 +19,8 @@ export const SpendingDashboard = () => {
   useEffect(() => {
     // On mount, check if the user has any data at all (all-time query)
     checkHasAnyData();
+    // Preload data for other tabs in the background
+    preloadTabData();
   }, []);
 
   useEffect(() => {
@@ -38,6 +40,21 @@ export const SpendingDashboard = () => {
       setHasAnyData(data.length > 0 || (response.data.totalSpending || 0) > 0);
     } catch {
       setHasAnyData(false);
+    }
+  };
+
+  const preloadTabData = async () => {
+    // Preload recommendations, predictions, and alerts in the background
+    // This will cache them so other tabs load instantly
+    try {
+      await Promise.all([
+        apiService.getRecommendations().catch(() => null),
+        apiService.getPredictions().catch(() => null),
+        apiService.getAlerts().catch(() => null),
+      ]);
+    } catch (error) {
+      // Silently fail - this is just for preloading
+      console.log('Background preload completed');
     }
   };
 
