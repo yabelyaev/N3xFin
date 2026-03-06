@@ -202,15 +202,24 @@ class ReportService:
         start_date: datetime,
         end_date: datetime
     ) -> List[Dict]:
-        """Query transactions within a date range."""
-        response = self.transactions_table.query(
-            KeyConditionExpression=Key('PK').eq(f'USER#{user_id}') & 
-                                 Key('SK').between(
-                                     f'TRANSACTION#{start_date.isoformat()}',
-                                     f'TRANSACTION#{end_date.isoformat()}~'
-                                 )
+        """Query transactions within a date range using the SK YYYY-MM-DD prefix format."""
+        start_str = start_date.strftime('%Y-%m-%d')
+        end_str = end_date.strftime('%Y-%m-%d')
+        items = []
+        kwargs = dict(
+            KeyConditionExpression=Key('PK').eq(f'USER#{user_id}') &
+                                   Key('SK').between(
+                                       f'TRANSACTION#{start_str}',
+                                       f'TRANSACTION#{end_str}~'
+                                   )
         )
-        return response.get('Items', [])
+        while True:
+            response = self.transactions_table.query(**kwargs)
+            items.extend(response.get('Items', []))
+            if 'LastEvaluatedKey' not in response:
+                break
+            kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
+        return items
     
     def _calculate_spending_and_income(self, transactions: List[Dict]) -> Dict:
         """Calculate total spending and income."""
@@ -462,4 +471,61 @@ Example: ["Your savings rate of 25% is excellent", "Dining spending increased by
             })
         except Exception as e:
             print(f"Error storing report: {str(e)}")
-            # Don't fail the request if storage fails
+
+    def get_months_with_data(self, user_id: str) -> List[str]:
+        """
+        Discover which calendar months (YYYY-MM) have at least one transaction.
+        Scans SK keys with prefix TRANSACTION# and extracts the date portion.
+        Returns sorted list of 'YYYY-MM' strings, oldest first.
+        """
+        months = set()
+        kwargs = dict(
+            KeyConditionExpression=Key('PK').eq(f'USER#{user_id}') &
+                                   Key('SK').begins_with('TRANSACTION#'),
+            ProjectionExpression='SK'
+        )
+        while True:
+            response = self.transactions_table.query(**kwargs)
+            for item in response.get('Items', []):
+                sk = item.get('SK', '')
+                # SK format: TRANSACTION#YYYY-MM-DD#<uuid>
+                parts = sk.split('#')
+                if len(parts) >= 2:
+                    date_part = parts[1]  # 'YYYY-MM-DD'
+                    if len(date_part) >= 7:
+                        months.add(date_part[:7])  # 'YYYY-MM'
+            if 'LastEvaluatedKey' not in response:
+                break
+            kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
+        return sorted(months)
+
+    def list_reports(self, user_id: str) -> List[Dict]:
+        """
+        List all previously generated reports for a user.
+        Returns list of report summary dicts (no full reportData).
+        """
+        try:
+            response = self.reports_table.query(
+                KeyConditionExpression=Key('PK').eq(f'USER#{user_id}') &
+                                       Key('SK').begins_with('REPORT#')
+            )
+            reports = []
+            for item in response.get('Items', []):
+                try:
+                    data = json.loads(item.get('reportData', '{}'))
+                    reports.append({
+                        'reportId': item.get('reportId', ''),
+                        'month': item.get('month', ''),
+                        'totalSpending': data.get('totalSpending', 0),
+                        'totalIncome': data.get('totalIncome', 0),
+                        'savingsRate': data.get('savingsRate', 0),
+                        'transactionCount': data.get('transactionCount', 0),
+                        'generatedAt': item.get('createdAt', ''),
+                    })
+                except Exception:
+                    pass
+            # Newest first
+            return sorted(reports, key=lambda r: r['month'], reverse=True)
+        except Exception as e:
+            print(f"Error listing reports: {str(e)}")
+            return []

@@ -1,26 +1,46 @@
 from datetime import datetime, UTC
-from typing import Optional, List
-from pydantic import BaseModel, Field
+from typing import Optional, List, Dict, Any
+from dataclasses import dataclass, field
 
 
-class Transaction(BaseModel):
+@dataclass
+class Transaction:
     """Transaction data model."""
     id: str
     userId: str
     date: datetime
     description: str
     amount: float
+    sourceFile: str
+    rawData: str
     balance: Optional[float] = None
     category: Optional[str] = None
     categoryConfidence: Optional[float] = None
     isAnomaly: bool = False
     anomalyReason: Optional[str] = None
-    sourceFile: str
-    rawData: str
-    createdAt: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    createdAt: datetime = field(default_factory=lambda: datetime.now(UTC))
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for DynamoDB."""
+        return {
+            'id': self.id,
+            'userId': self.userId,
+            'date': self.date.isoformat(),
+            'description': self.description,
+            'amount': str(self.amount),
+            'balance': str(self.balance) if self.balance is not None else None,
+            'category': self.category or 'Uncategorized',
+            'categoryConfidence': str(self.categoryConfidence) if self.categoryConfidence is not None else '0.0',
+            'isAnomaly': self.isAnomaly,
+            'anomalyReason': self.anomalyReason,
+            'sourceFile': self.sourceFile,
+            'rawData': self.rawData,
+            'createdAt': self.createdAt.isoformat()
+        }
 
 
-class Category(BaseModel):
+@dataclass
+class Category:
     """Category data model."""
     id: str
     name: str
@@ -28,7 +48,8 @@ class Category(BaseModel):
     confidence: float
 
 
-class User(BaseModel):
+@dataclass
+class User:
     """User data model."""
     id: str
     email: str
@@ -36,7 +57,8 @@ class User(BaseModel):
     lastLogin: datetime
 
 
-class CategorySpending(BaseModel):
+@dataclass
+class CategorySpending:
     """Category spending aggregation."""
     category: str
     totalAmount: float
@@ -44,7 +66,8 @@ class CategorySpending(BaseModel):
     percentageOfTotal: float
 
 
-class Anomaly(BaseModel):
+@dataclass
+class Anomaly:
     """Anomaly detection result."""
     transaction: Transaction
     reason: str
@@ -52,7 +75,8 @@ class Anomaly(BaseModel):
     expectedRange: dict
 
 
-class Recommendation(BaseModel):
+@dataclass
+class Recommendation:
     """Savings recommendation."""
     id: str
     title: str
@@ -63,14 +87,15 @@ class Recommendation(BaseModel):
     priority: int
 
 
-class FinancialHealthReport(BaseModel):
+@dataclass
+class FinancialHealthReport:
     """Monthly financial health report."""
     userId: str
     month: datetime
     totalSpending: float
     spendingByCategory: List[CategorySpending]
     savingsRate: float
-    trends: List[dict]
+    trends: List[Dict[str, Any]]
     insights: List[str]
     recommendations: List[Recommendation]
 

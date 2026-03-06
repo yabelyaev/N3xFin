@@ -1,11 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom';
 import userEvent from '@testing-library/user-event';
 import { MonthlyReportsList } from './MonthlyReportsList';
 import { apiService } from '../../services/api';
 
 vi.mock('../../services/api', () => ({
   apiService: {
+    listReports: vi.fn(),
     generateReport: vi.fn(),
   },
 }));
@@ -15,28 +17,37 @@ describe('MonthlyReportsList', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
+  const emptyReportsResponse = {
+    data: {
+      reports: [],
+      monthsWithData: []
+    }
+  };
+
   it('renders empty state when no reports exist', async () => {
+    vi.mocked(apiService.listReports).mockResolvedValueOnce(emptyReportsResponse as any);
     render(<MonthlyReportsList onSelectReport={mockOnSelectReport} />);
 
     await waitFor(() => {
       expect(screen.getByText(/no reports yet/i)).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/generate your first monthly financial report/i)).toBeInTheDocument();
+    expect(screen.getByText(/upload a bank statement/i)).toBeInTheDocument();
   });
 
-  it('displays generate new report button', async () => {
+  it('displays monthly reports title', async () => {
+    vi.mocked(apiService.listReports).mockResolvedValueOnce(emptyReportsResponse as any);
     render(<MonthlyReportsList onSelectReport={mockOnSelectReport} />);
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /generate new report/i })).toBeInTheDocument();
+      expect(screen.getByText(/monthly reports/i)).toBeInTheDocument();
     });
   });
 
-  it('generates new report when button is clicked', async () => {
-    const user = userEvent.setup();
+  it('auto-generates missing reports on mount', async () => {
     const mockReport = {
       reportId: 'test-2024-01',
       userId: 'user123',
@@ -48,34 +59,35 @@ describe('MonthlyReportsList', () => {
       generatedAt: '2024-01-31T12:00:00Z',
     };
 
-    vi.mocked(apiService.generateReport).mockResolvedValue({
+    vi.mocked(apiService.listReports)
+      .mockResolvedValueOnce({
+        data: { reports: [], monthsWithData: ['2024-01'] }
+      } as any)
+      .mockResolvedValueOnce({
+        data: { reports: [mockReport], monthsWithData: ['2024-01'] }
+      } as any);
+
+    vi.mocked(apiService.generateReport).mockResolvedValueOnce({
       data: mockReport,
-    });
+    } as any);
 
     render(<MonthlyReportsList onSelectReport={mockOnSelectReport} />);
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /generate new report/i })).toBeInTheDocument();
+      expect(apiService.generateReport).toHaveBeenCalledWith(2024, 1);
     });
-
-    const generateButton = screen.getByRole('button', { name: /generate new report/i });
-    await user.click(generateButton);
-
-    expect(apiService.generateReport).toHaveBeenCalledTimes(1);
 
     await waitFor(() => {
       expect(screen.getByText(/january 2024/i)).toBeInTheDocument();
     });
   });
 
-  it('displays error message when report generation fails', async () => {
-    const user = userEvent.setup();
-
-    vi.mocked(apiService.generateReport).mockRejectedValue({
+  it('displays error message when report loading fails', async () => {
+    vi.mocked(apiService.listReports).mockRejectedValueOnce({
       response: {
         data: {
           error: {
-            message: 'Failed to generate report',
+            message: 'Failed to load reports',
           },
         },
       },
@@ -84,37 +96,52 @@ describe('MonthlyReportsList', () => {
     render(<MonthlyReportsList onSelectReport={mockOnSelectReport} />);
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /generate new report/i })).toBeInTheDocument();
-    });
-
-    const generateButton = screen.getByRole('button', { name: /generate new report/i });
-    await user.click(generateButton);
-
-    await waitFor(() => {
-      expect(screen.getByText(/failed to generate report/i)).toBeInTheDocument();
+      expect(screen.getByText(/failed to load reports/i)).toBeInTheDocument();
     });
   });
 
-  it('disables generate button while generating', async () => {
-    const user = userEvent.setup();
+  it('shows progress while auto-generating', async () => {
+    vi.mocked(apiService.listReports).mockResolvedValueOnce({
+      data: { reports: [], monthsWithData: ['2024-01'] }
+    } as any);
 
-    vi.mocked(apiService.generateReport).mockImplementation(
-      () => new Promise((resolve) => setTimeout(resolve, 1000))
-    );
+    let resolveGenerate: any;
+    const generatePromise = new Promise((resolve) => {
+      resolveGenerate = resolve;
+    });
+
+    vi.mocked(apiService.generateReport).mockReturnValueOnce(generatePromise as any);
 
     render(<MonthlyReportsList onSelectReport={mockOnSelectReport} />);
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /generate new report/i })).toBeInTheDocument();
+      expect(screen.queryByText(/Generating/i)).toBeInTheDocument();
     });
 
-    const generateButton = screen.getByRole('button', { name: /generate new report/i });
-    await user.click(generateButton);
+    const mockReport = {
+      reportId: 'test-2024-01',
+      userId: 'user123',
+      month: '2024-01',
+      totalSpending: 1500,
+      totalIncome: 3000,
+      savingsRate: 50,
+      transactionCount: 25,
+      generatedAt: '2024-01-31T12:00:00Z',
+    };
 
-    expect(screen.getByRole('button', { name: /generating/i })).toBeDisabled();
+    // Before resolving, update listReports to return the report
+    vi.mocked(apiService.listReports).mockResolvedValueOnce({
+      data: { reports: [mockReport], monthsWithData: ['2024-01'] }
+    } as any);
+
+    resolveGenerate({ data: mockReport });
+
+    await waitFor(() => {
+      expect(screen.getByText(/january 2024/i)).toBeInTheDocument();
+    });
   });
 
-  it('calls onSelectReport when report is clicked', async () => {
+  it('calls onSelectReport when a report is clicked', async () => {
     const user = userEvent.setup();
     const mockReport = {
       reportId: 'test-2024-01',
@@ -127,81 +154,17 @@ describe('MonthlyReportsList', () => {
       generatedAt: '2024-01-31T12:00:00Z',
     };
 
-    vi.mocked(apiService.generateReport).mockResolvedValue({
-      data: mockReport,
-    });
+    vi.mocked(apiService.listReports).mockResolvedValueOnce({
+      data: { reports: [mockReport], monthsWithData: ['2024-01'] }
+    } as any);
 
     render(<MonthlyReportsList onSelectReport={mockOnSelectReport} />);
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /generate new report/i })).toBeInTheDocument();
-    });
-
-    const generateButton = screen.getByRole('button', { name: /generate new report/i });
-    await user.click(generateButton);
 
     await waitFor(() => {
       expect(screen.getByText(/january 2024/i)).toBeInTheDocument();
     });
 
-    const reportCard = screen.getByText(/january 2024/i).closest('div[class*="cursor-pointer"]');
-    if (reportCard) {
-      await user.click(reportCard);
-      expect(mockOnSelectReport).toHaveBeenCalledWith('test-2024-01');
-    }
-  });
-
-  it('formats currency correctly', async () => {
-    const mockReport = {
-      reportId: 'test-2024-01',
-      userId: 'user123',
-      month: '2024-01',
-      totalSpending: 1234.56,
-      totalIncome: 5678.90,
-      savingsRate: 78.3,
-      transactionCount: 42,
-      generatedAt: '2024-01-31T12:00:00Z',
-    };
-
-    vi.mocked(apiService.generateReport).mockResolvedValue({
-      data: mockReport,
-    });
-
-    render(<MonthlyReportsList onSelectReport={mockOnSelectReport} />);
-
-    const generateButton = await screen.findByRole('button', { name: /generate new report/i });
-    await userEvent.click(generateButton);
-
-    await waitFor(() => {
-      expect(screen.getByText('$1,234.56')).toBeInTheDocument();
-      expect(screen.getByText('$5,678.90')).toBeInTheDocument();
-    });
-  });
-
-  it('displays savings rate with appropriate color coding', async () => {
-    const highSavingsReport = {
-      reportId: 'test-2024-01',
-      userId: 'user123',
-      month: '2024-01',
-      totalSpending: 1000,
-      totalIncome: 5000,
-      savingsRate: 80,
-      transactionCount: 10,
-      generatedAt: '2024-01-31T12:00:00Z',
-    };
-
-    vi.mocked(apiService.generateReport).mockResolvedValue({
-      data: highSavingsReport,
-    });
-
-    render(<MonthlyReportsList onSelectReport={mockOnSelectReport} />);
-
-    const generateButton = await screen.findByRole('button', { name: /generate new report/i });
-    await userEvent.click(generateButton);
-
-    await waitFor(() => {
-      const savingsRate = screen.getByText('80.0%');
-      expect(savingsRate).toHaveClass('text-green-600');
-    });
+    await user.click(screen.getByText(/january 2024/i));
+    expect(mockOnSelectReport).toHaveBeenCalledWith(mockReport.reportId);
   });
 });

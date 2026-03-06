@@ -330,11 +330,7 @@ class AnalyticsService:
         )
         results = _query_all(date_filter)
 
-        # If nothing found, fall back to ALL transactions (handles older statements)
-        if not results:
-            print(f'Date-filtered query returned 0 results for {start_str}–{end_str}, falling back to all-time')
-            results = _query_all()
-
+        # Return results (could be empty, which is correct for ranges with no data)
         return results
     
     def _get_time_bucket(self, date: datetime, granularity: str) -> datetime:

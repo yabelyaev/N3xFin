@@ -129,14 +129,11 @@ class ConversationService:
             start_date = end_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
             description = 'this month'
         elif 'last month' in question_lower:
-            # Previous month
-            if end_date.month == 1:
-                start_date = datetime(end_date.year - 1, 12, 1)
-                month_end = datetime(end_date.year, 1, 1) - timedelta(days=1)
-            else:
-                start_date = datetime(end_date.year, end_date.month - 1, 1)
-                month_end = datetime(end_date.year, end_date.month, 1) - timedelta(days=1)
-            end_date = month_end
+            # Previous calendar month — use UTC-aware datetimes
+            first_of_this_month = end_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            last_of_prev_month = first_of_this_month - timedelta(seconds=1)
+            start_date = last_of_prev_month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            end_date = last_of_prev_month
             description = 'last month'
         elif 'year' in question_lower or 'annual' in question_lower:
             start_date = datetime(end_date.year, 1, 1)
@@ -158,15 +155,25 @@ class ConversationService:
         start_date: datetime,
         end_date: datetime
     ) -> List[Dict]:
-        """Query transactions within a date range."""
-        response = self.transactions_table.query(
-            KeyConditionExpression=Key('PK').eq(f'USER#{user_id}') & 
-                                 Key('SK').between(
-                                     f'TRANSACTION#{start_date.isoformat()}',
-                                     f'TRANSACTION#{end_date.isoformat()}~'
-                                 )
+        """Query transactions within a date range using the SK date prefix format."""
+        # SK format is TRANSACTION#YYYY-MM-DD#<uuid> — must match this exactly
+        start_str = start_date.strftime('%Y-%m-%d')
+        end_str = end_date.strftime('%Y-%m-%d')
+        items = []
+        kwargs = dict(
+            KeyConditionExpression=Key('PK').eq(f'USER#{user_id}') &
+                                   Key('SK').between(
+                                       f'TRANSACTION#{start_str}',
+                                       f'TRANSACTION#{end_str}~'
+                                   )
         )
-        return response.get('Items', [])
+        while True:
+            response = self.transactions_table.query(**kwargs)
+            items.extend(response.get('Items', []))
+            if 'LastEvaluatedKey' not in response:
+                break
+            kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
+        return items
     
     def _calculate_category_totals(self, transactions: List[Dict]) -> Dict:
         """Calculate spending totals by category."""

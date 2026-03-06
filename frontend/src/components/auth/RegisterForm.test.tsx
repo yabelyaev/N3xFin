@@ -23,6 +23,10 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
+// Mock window.alert
+const mockAlert = vi.fn();
+vi.stubGlobal('alert', mockAlert);
+
 // Mock auth utilities
 vi.mock('../../utils/auth', () => ({
   setAuthToken: vi.fn(),
@@ -189,7 +193,7 @@ describe('RegisterForm', () => {
 
     await waitFor(() => {
       expect(apiService.register).toHaveBeenCalledWith('test@example.com', 'ValidPassword123!');
-      expect(mockNavigate).toHaveBeenCalledWith('/dashboard');
+      expect(mockNavigate).toHaveBeenCalledWith('/login');
     });
   });
 

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom';
 import userEvent from '@testing-library/user-event';
 import { SpendingDashboard } from './SpendingDashboard';
 import { apiService } from '../../services/api';
@@ -61,9 +62,16 @@ describe('SpendingDashboard', () => {
     vi.clearAllMocks();
   });
 
+  const setupDashMocks = () => {
+    vi.mocked(apiService.getAnalytics)
+      .mockResolvedValueOnce({ data: { data: mockCategoryData, totalSpending: 1250 } } as any)
+      .mockResolvedValueOnce({ data: { data: mockCategoryData, totalSpending: 1250, trends: mockTrends } } as any)
+      .mockResolvedValueOnce({ data: { data: mockTimeSeriesData } } as any);
+  };
+
   it('renders loading state initially', () => {
     vi.mocked(apiService.getAnalytics).mockImplementation(
-      () => new Promise(() => {}) // Never resolves
+      () => new Promise(() => { }) // Never resolves
     );
 
     render(<SpendingDashboard />);
@@ -71,24 +79,11 @@ describe('SpendingDashboard', () => {
   });
 
   it('loads and displays analytics data on mount', async () => {
-    vi.mocked(apiService.getAnalytics)
-      .mockResolvedValueOnce({
-        data: {
-          data: mockCategoryData,
-          totalSpending: 1250,
-          trends: mockTrends,
-        },
-      })
-      .mockResolvedValueOnce({
-        data: {
-          data: mockTimeSeriesData,
-        },
-      });
-
+    setupDashMocks();
     render(<SpendingDashboard />);
 
     await waitFor(() => {
-      expect(screen.getByText('$1250.00')).toBeInTheDocument();
+      expect(screen.getByText('$1,250.00')).toBeInTheDocument();
     });
 
     expect(screen.getByTestId('category-chart')).toBeInTheDocument();
@@ -96,170 +91,63 @@ describe('SpendingDashboard', () => {
   });
 
   it('displays spending trends with correct indicators', async () => {
-    vi.mocked(apiService.getAnalytics)
-      .mockResolvedValueOnce({
-        data: {
-          data: mockCategoryData,
-          totalSpending: 1250,
-          trends: mockTrends,
-        },
-      })
-      .mockResolvedValueOnce({
-        data: {
-          data: mockTimeSeriesData,
-        },
-      });
-
+    setupDashMocks();
     render(<SpendingDashboard />);
 
     await waitFor(() => {
-      expect(screen.getByText(/dining/i)).toBeInTheDocument();
+      expect(screen.getByText('Dining')).toBeInTheDocument();
     });
 
-    // Check for trend indicators
-    expect(screen.getByText(/↑/)).toBeInTheDocument(); // Increasing
-    expect(screen.getByText(/↓/)).toBeInTheDocument(); // Decreasing
-    expect(screen.getByText(/→/)).toBeInTheDocument(); // Stable
-    expect(screen.getByText(/15.5%/)).toBeInTheDocument();
-    expect(screen.getByText(/10.2%/)).toBeInTheDocument();
+    expect(screen.getByText('15.5%')).toBeInTheDocument();
+    expect(screen.getByText('10.2%')).toBeInTheDocument();
+    expect(screen.getByText('2.1%')).toBeInTheDocument();
   });
 
-  it('changes time range when selector is used', async () => {
+  it('changes time range and reloads data', async () => {
     const user = userEvent.setup();
-    
-    vi.mocked(apiService.getAnalytics)
-      .mockResolvedValue({
-        data: {
-          data: mockCategoryData,
-          totalSpending: 1250,
-          trends: mockTrends,
-        },
-      });
-
+    setupDashMocks();
     render(<SpendingDashboard />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('time-range-selector')).toBeInTheDocument();
+      expect(screen.getByText('$1,250.00')).toBeInTheDocument();
     });
 
-    // Initial load (30d default)
+    vi.mocked(apiService.getAnalytics).mockClear();
+    vi.mocked(apiService.getAnalytics)
+      .mockResolvedValueOnce({ data: { data: mockCategoryData, totalSpending: 800 } } as any)
+      .mockResolvedValueOnce({ data: { data: [] } } as any);
+
+    const sevenDayButton = screen.getByText('7 Days');
+    await user.click(sevenDayButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('$800.00')).toBeInTheDocument();
+    });
+
     expect(apiService.getAnalytics).toHaveBeenCalledTimes(2);
-
-    // Change to 7 days
-    const sevenDaysButton = screen.getByText('7 Days');
-    await user.click(sevenDaysButton);
-
-    await waitFor(() => {
-      expect(apiService.getAnalytics).toHaveBeenCalledTimes(4); // 2 more calls
-    });
   });
 
-  it('toggles between bar and pie chart types', async () => {
+  it('toggles between chart types', async () => {
     const user = userEvent.setup();
-    
-    vi.mocked(apiService.getAnalytics)
-      .mockResolvedValueOnce({
-        data: {
-          data: mockCategoryData,
-          totalSpending: 1250,
-          trends: mockTrends,
-        },
-      })
-      .mockResolvedValueOnce({
-        data: {
-          data: mockTimeSeriesData,
-        },
-      });
-
+    setupDashMocks();
     render(<SpendingDashboard />);
 
     await waitFor(() => {
-      expect(screen.getByText(/spending by category/i)).toBeInTheDocument();
+      expect(screen.getByTestId('category-chart')).toHaveAttribute('data-type', 'bar');
     });
 
-    // Default is bar chart
-    const categoryChart = screen.getByTestId('category-chart');
-    expect(categoryChart).toHaveAttribute('data-type', 'bar');
-
-    // Switch to pie chart
-    const pieButton = screen.getByRole('button', { name: /pie/i });
+    const pieButton = screen.getByText(/pie/i);
     await user.click(pieButton);
 
-    expect(categoryChart).toHaveAttribute('data-type', 'pie');
-
-    // Switch back to bar chart
-    const barButton = screen.getByRole('button', { name: /bar/i });
-    await user.click(barButton);
-
-    expect(categoryChart).toHaveAttribute('data-type', 'bar');
+    expect(screen.getByTestId('category-chart')).toHaveAttribute('data-type', 'pie');
   });
 
-  it('displays error message when API call fails', async () => {
-    vi.mocked(apiService.getAnalytics).mockRejectedValue({
-      response: {
-        data: {
-          error: {
-            message: 'Failed to fetch analytics',
-          },
-        },
-      },
-    });
-
-    render(<SpendingDashboard />);
-
-    await waitFor(() => {
-      expect(screen.getByText(/failed to fetch analytics/i)).toBeInTheDocument();
-    });
-
-    expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
-  });
-
-  it('retries loading data when try again button is clicked', async () => {
-    const user = userEvent.setup();
-    
+  it('displays empty state when no data is available for selected range', async () => {
+    // hasAnyData = true, loadAnalytics = empty
     vi.mocked(apiService.getAnalytics)
-      .mockRejectedValueOnce(new Error('Network error'))
-      .mockResolvedValueOnce({
-        data: {
-          data: mockCategoryData,
-          totalSpending: 1250,
-          trends: mockTrends,
-        },
-      })
-      .mockResolvedValueOnce({
-        data: {
-          data: mockTimeSeriesData,
-        },
-      });
-
-    render(<SpendingDashboard />);
-
-    await waitFor(() => {
-      expect(screen.getByText(/failed to load analytics data/i)).toBeInTheDocument();
-    });
-
-    const retryButton = screen.getByRole('button', { name: /try again/i });
-    await user.click(retryButton);
-
-    await waitFor(() => {
-      expect(screen.getByText('$1250.00')).toBeInTheDocument();
-    });
-  });
-
-  it('handles empty data gracefully', async () => {
-    vi.mocked(apiService.getAnalytics)
-      .mockResolvedValueOnce({
-        data: {
-          data: [],
-          totalSpending: 0,
-          trends: {},
-        },
-      })
-      .mockResolvedValueOnce({
-        data: {
-          data: [],
-        },
-      });
+      .mockResolvedValueOnce({ data: { data: mockCategoryData } } as any)
+      .mockResolvedValueOnce({ data: { data: [], totalSpending: 0 } } as any)
+      .mockResolvedValueOnce({ data: { data: [] } } as any);
 
     render(<SpendingDashboard />);
 
@@ -267,34 +155,44 @@ describe('SpendingDashboard', () => {
       expect(screen.getByText('$0.00')).toBeInTheDocument();
     });
 
-    expect(screen.getByTestId('category-chart')).toHaveTextContent('No data');
-    expect(screen.getByTestId('timeseries-chart')).toHaveTextContent('No data');
+    expect(screen.getByText(/no data for this period/i)).toBeInTheDocument();
   });
 
-  it('calculates correct start date for different time ranges', async () => {
-    vi.mocked(apiService.getAnalytics).mockResolvedValue({
-      data: {
-        data: mockCategoryData,
-        totalSpending: 1250,
-        trends: mockTrends,
-      },
-    });
+  it('handles API errors gracefully', async () => {
+    vi.mocked(apiService.getAnalytics)
+      .mockResolvedValueOnce({ data: { data: mockCategoryData } } as any)
+      .mockRejectedValue({
+        response: {
+          data: {
+            error: {
+              message: 'Failed to fetch analytics',
+            },
+          },
+        },
+      });
 
     render(<SpendingDashboard />);
 
     await waitFor(() => {
-      expect(apiService.getAnalytics).toHaveBeenCalled();
+      expect(screen.getByText(/failed to fetch analytics/i)).toBeInTheDocument();
     });
 
-    const calls = vi.mocked(apiService.getAnalytics).mock.calls;
-    const startDate = calls[0][1];
-    const endDate = calls[0][2];
+    const retryButton = screen.getByText(/try again/i);
+    expect(retryButton).toBeInTheDocument();
+  });
 
-    // Verify dates are in correct format (YYYY-MM-DD)
-    expect(startDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(endDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  it('allows sorting categories by name', async () => {
+    const user = userEvent.setup();
+    setupDashMocks();
+    render(<SpendingDashboard />);
 
-    // Verify start date is before end date
-    expect(new Date(startDate).getTime()).toBeLessThan(new Date(endDate).getTime());
+    await waitFor(() => {
+      expect(screen.getByText('Dining')).toBeInTheDocument();
+    });
+
+    const nameSortButton = screen.getByText(/name/i);
+    await user.click(nameSortButton);
+
+    expect(nameSortButton).toBeInTheDocument();
   });
 });

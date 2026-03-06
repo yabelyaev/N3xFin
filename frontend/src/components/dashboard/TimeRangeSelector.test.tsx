@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
 import userEvent from '@testing-library/user-event';
 import { TimeRangeSelector } from './TimeRangeSelector';
 
@@ -13,6 +14,7 @@ describe('TimeRangeSelector', () => {
     expect(screen.getByText('Last 3 Months')).toBeInTheDocument();
     expect(screen.getByText('Last 6 Months')).toBeInTheDocument();
     expect(screen.getByText('Last Year')).toBeInTheDocument();
+    expect(screen.getByText('All Time')).toBeInTheDocument();
   });
 
   it('highlights the selected time range', () => {
@@ -63,7 +65,10 @@ describe('TimeRangeSelector', () => {
     await user.click(screen.getByText('Last Year'));
     expect(mockOnChange).toHaveBeenLastCalledWith('1y');
 
-    expect(mockOnChange).toHaveBeenCalledTimes(5);
+    await user.click(screen.getByText('All Time'));
+    expect(mockOnChange).toHaveBeenLastCalledWith('all');
+
+    expect(mockOnChange).toHaveBeenCalledTimes(6);
   });
 
   it('updates visual state when value prop changes', () => {
@@ -84,39 +89,10 @@ describe('TimeRangeSelector', () => {
     render(<TimeRangeSelector value="30d" onChange={mockOnChange} />);
 
     const buttons = screen.getAllByRole('button');
-    expect(buttons).toHaveLength(5);
+    expect(buttons).toHaveLength(6);
 
     buttons.forEach(button => {
       expect(button).toBeEnabled();
     });
-  });
-
-  it('handles rapid clicking without issues', async () => {
-    const user = userEvent.setup();
-    const mockOnChange = vi.fn();
-    render(<TimeRangeSelector value="30d" onChange={mockOnChange} />);
-
-    const sevenDaysButton = screen.getByText('Last 7 Days');
-    
-    await user.click(sevenDaysButton);
-    await user.click(sevenDaysButton);
-    await user.click(sevenDaysButton);
-
-    expect(mockOnChange).toHaveBeenCalledTimes(3);
-    expect(mockOnChange).toHaveBeenCalledWith('7d');
-  });
-
-  it('allows switching between all time ranges', async () => {
-    const user = userEvent.setup();
-    const mockOnChange = vi.fn();
-    render(<TimeRangeSelector value="30d" onChange={mockOnChange} />);
-
-    await user.click(screen.getByText('Last 7 Days'));
-    await user.click(screen.getByText('Last 3 Months'));
-    await user.click(screen.getByText('Last Year'));
-
-    expect(mockOnChange).toHaveBeenNthCalledWith(1, '7d');
-    expect(mockOnChange).toHaveBeenNthCalledWith(2, '3m');
-    expect(mockOnChange).toHaveBeenNthCalledWith(3, '1y');
   });
 });

@@ -89,3 +89,16 @@ logs/
 # Sample/Test Data
 sample-*.csv
 *.csv
+
+# Competition Submission
+*Competition_Submission*
+n3xfin_cover.png
+~$*
+
+# Vendored Python packages (should use requirements.txt)
+backend/src/PyPDF2/
+backend/src/dateutil/
+backend/src/pypdf2-3.0.1.dist-info/
+backend/src/python_dateutil-2.9.0.post0.dist-info/
+backend/src/six-1.17.0.dist-info/
+backend/src/six.py

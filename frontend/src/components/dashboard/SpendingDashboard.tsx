@@ -6,7 +6,7 @@ import { apiService } from '../../services/api';
 import type { AnalyticsData } from '../../types/analytics';
 
 export const SpendingDashboard = () => {
-  const [timeRange, setTimeRange] = useState('all');
+  const [timeRange, setTimeRange] = useState('30d');
   const [chartType, setChartType] = useState<'pie' | 'bar'>('bar');
   const [sortBy, setSortBy] = useState<'amount' | 'name' | 'percentage'>('amount');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
