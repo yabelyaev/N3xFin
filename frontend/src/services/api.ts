@@ -2,7 +2,7 @@
 import axios, { type AxiosInstance } from 'axios';
 import { isDemoMode, demoModeService } from './demoMode';
 import { API_BASE_URL } from '../config/aws-config';
-import { cache, CACHE_TTL } from '../utils/cache';
+import { cache, CACHE_TTL, CACHE_STALE_TIME } from '../utils/cache';
 
 class ApiService {
   private client: AxiosInstance;
@@ -140,16 +140,29 @@ class ApiService {
     // Check cache first
     const cached = cache.get(cacheKey);
     if (cached) {
-      return { data: cached };
+      // If data is stale, fetch fresh data in background
+      if (cached.isStale) {
+        // Background refresh (don't await)
+        this.client.get('/analytics', {
+          params: { type, startDate, endDate, granularity },
+        }).then(response => {
+          cache.set(cacheKey, response.data, CACHE_TTL.ANALYTICS, CACHE_STALE_TIME.ANALYTICS);
+        }).catch(() => {
+          // Silently fail - user already has cached data
+        });
+      }
+      
+      // Return cached data immediately
+      return { data: cached.data };
     }
     
-    // Fetch from API
+    // No cache - fetch from API
     const response = await this.client.get('/analytics', {
       params: { type, startDate, endDate, granularity },
     });
     
     // Cache the result
-    cache.set(cacheKey, response.data, CACHE_TTL.ANALYTICS);
+    cache.set(cacheKey, response.data, CACHE_TTL.ANALYTICS, CACHE_STALE_TIME.ANALYTICS);
     
     return response;
   }
@@ -176,14 +189,22 @@ class ApiService {
     // Check cache first
     const cached = cache.get(cacheKey);
     if (cached) {
-      return { data: cached };
+      // If data is stale, fetch fresh data in background
+      if (cached.isStale) {
+        this.client.get('/predictions', { params: { horizon } })
+          .then(response => {
+            cache.set(cacheKey, response.data, CACHE_TTL.PREDICTIONS, CACHE_STALE_TIME.PREDICTIONS);
+          })
+          .catch(() => {});
+      }
+      return { data: cached.data };
     }
     
-    // Fetch from API
+    // No cache - fetch from API
     const response = await this.client.get('/predictions', { params: { horizon } });
     
     // Cache the result
-    cache.set(cacheKey, response.data, CACHE_TTL.PREDICTIONS);
+    cache.set(cacheKey, response.data, CACHE_TTL.PREDICTIONS, CACHE_STALE_TIME.PREDICTIONS);
     
     return response;
   }
@@ -199,14 +220,22 @@ class ApiService {
     // Check cache first
     const cached = cache.get(cacheKey);
     if (cached) {
-      return { data: cached };
+      // If data is stale, fetch fresh data in background
+      if (cached.isStale) {
+        this.client.get('/predictions/alerts')
+          .then(response => {
+            cache.set(cacheKey, response.data, CACHE_TTL.PREDICTIONS, CACHE_STALE_TIME.PREDICTIONS);
+          })
+          .catch(() => {});
+      }
+      return { data: cached.data };
     }
     
-    // Fetch from API
+    // No cache - fetch from API
     const response = await this.client.get('/predictions/alerts');
     
     // Cache the result
-    cache.set(cacheKey, response.data, CACHE_TTL.PREDICTIONS);
+    cache.set(cacheKey, response.data, CACHE_TTL.PREDICTIONS, CACHE_STALE_TIME.PREDICTIONS);
     
     return response;
   }
@@ -223,14 +252,22 @@ class ApiService {
     // Check cache first
     const cached = cache.get(cacheKey);
     if (cached) {
-      return { data: cached };
+      // If data is stale, fetch fresh data in background
+      if (cached.isStale) {
+        this.client.get('/recommendations')
+          .then(response => {
+            cache.set(cacheKey, response.data, CACHE_TTL.RECOMMENDATIONS, CACHE_STALE_TIME.RECOMMENDATIONS);
+          })
+          .catch(() => {});
+      }
+      return { data: cached.data };
     }
     
-    // Fetch from API
+    // No cache - fetch from API
     const response = await this.client.get('/recommendations');
     
     // Cache the result
-    cache.set(cacheKey, response.data, CACHE_TTL.RECOMMENDATIONS);
+    cache.set(cacheKey, response.data, CACHE_TTL.RECOMMENDATIONS, CACHE_STALE_TIME.RECOMMENDATIONS);
     
     return response;
   }

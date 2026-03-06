@@ -1,11 +1,12 @@
 /**
- * Simple in-memory cache with TTL (Time To Live)
+ * Simple in-memory cache with TTL (Time To Live) and stale-while-revalidate support
  */
 
 interface CacheEntry<T> {
   data: T;
   timestamp: number;
   ttl: number;
+  staleTime: number; // Time after which data is considered stale but still usable
 }
 
 class Cache {
@@ -13,8 +14,9 @@ class Cache {
 
   /**
    * Get cached data if it exists and hasn't expired
+   * Returns { data, isStale } where isStale indicates if background refresh is needed
    */
-  get<T>(key: string): T | null {
+  get<T>(key: string): { data: T; isStale: boolean } | null {
     const entry = this.cache.get(key);
     
     if (!entry) {
@@ -24,23 +26,34 @@ class Cache {
     const now = Date.now();
     const age = now - entry.timestamp;
 
-    // Check if cache has expired
+    // Check if cache has completely expired (hard TTL)
     if (age > entry.ttl) {
       this.cache.delete(key);
       return null;
     }
 
-    return entry.data as T;
+    // Check if data is stale (soft TTL) - still return it but mark as stale
+    const isStale = age > entry.staleTime;
+
+    return {
+      data: entry.data as T,
+      isStale,
+    };
   }
 
   /**
-   * Set cache data with TTL in milliseconds
+   * Set cache data with TTL and stale time in milliseconds
+   * @param key Cache key
+   * @param data Data to cache
+   * @param ttl Total time to live (hard expiration)
+   * @param staleTime Time after which to fetch fresh data in background (soft expiration)
    */
-  set<T>(key: string, data: T, ttl: number = 60000): void {
+  set<T>(key: string, data: T, ttl: number = 60000, staleTime?: number): void {
     this.cache.set(key, {
       data,
       timestamp: Date.now(),
       ttl,
+      staleTime: staleTime || ttl / 2, // Default: stale at 50% of TTL
     });
   }
 
@@ -83,9 +96,18 @@ export const cache = new Cache();
 
 // Cache TTL constants (in milliseconds)
 export const CACHE_TTL = {
-  ANALYTICS: 2 * 60 * 1000,      // 2 minutes
-  RECOMMENDATIONS: 5 * 60 * 1000, // 5 minutes
-  PREDICTIONS: 5 * 60 * 1000,     // 5 minutes
-  REPORTS: 10 * 60 * 1000,        // 10 minutes
-  CONVERSATIONS: 1 * 60 * 1000,   // 1 minute
+  ANALYTICS: 2 * 60 * 1000,      // 2 minutes (stale after 1 minute)
+  RECOMMENDATIONS: 5 * 60 * 1000, // 5 minutes (stale after 2.5 minutes)
+  PREDICTIONS: 5 * 60 * 1000,     // 5 minutes (stale after 2.5 minutes)
+  REPORTS: 10 * 60 * 1000,        // 10 minutes (stale after 5 minutes)
+  CONVERSATIONS: 1 * 60 * 1000,   // 1 minute (stale after 30 seconds)
+};
+
+// Stale times (when to trigger background refresh)
+export const CACHE_STALE_TIME = {
+  ANALYTICS: 1 * 60 * 1000,       // 1 minute
+  RECOMMENDATIONS: 2.5 * 60 * 1000, // 2.5 minutes
+  PREDICTIONS: 2.5 * 60 * 1000,     // 2.5 minutes
+  REPORTS: 5 * 60 * 1000,          // 5 minutes
+  CONVERSATIONS: 30 * 1000,        // 30 seconds
 };
