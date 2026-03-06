@@ -21,10 +21,14 @@ export const SpendingDashboard = () => {
     checkHasAnyData();
     // Preload data for other tabs in the background
     preloadTabData();
+    // Preload all time ranges in the background
+    preloadTimeRanges();
   }, []);
 
   useEffect(() => {
     loadAnalytics();
+    // Preload adjacent time ranges when user changes selection
+    preloadAdjacentRanges(timeRange);
   }, [timeRange]);
 
   const checkHasAnyData = async () => {
@@ -56,6 +60,56 @@ export const SpendingDashboard = () => {
       // Silently fail - this is just for preloading
       console.log('Background preload completed');
     }
+  };
+
+  const preloadTimeRanges = async () => {
+    // Preload all common time ranges in the background
+    // This makes time range switching instant
+    const endDate = new Date().toISOString().split('T')[0];
+    const ranges = ['7d', '30d', '3m', '6m', '1y', 'all'];
+    
+    try {
+      // Preload category data for all ranges
+      const categoryPromises = ranges.map(range => {
+        const startDate = calculateStartDate(range);
+        return apiService.getAnalytics('category', startDate, endDate).catch(() => null);
+      });
+      
+      // Preload timeseries data for all ranges
+      const timeseriesPromises = ranges.map(range => {
+        const startDate = calculateStartDate(range);
+        return apiService.getAnalytics('timeseries', startDate, endDate, 'day').catch(() => null);
+      });
+      
+      // Load all in parallel (don't await - background only)
+      Promise.all([...categoryPromises, ...timeseriesPromises]).then(() => {
+        console.log('All time ranges preloaded');
+      });
+    } catch (error) {
+      // Silently fail
+    }
+  };
+
+  const preloadAdjacentRanges = (currentRange: string) => {
+    // Preload likely next time ranges based on current selection
+    const rangeOrder = ['7d', '30d', '3m', '6m', '1y', 'all'];
+    const currentIndex = rangeOrder.indexOf(currentRange);
+    
+    if (currentIndex === -1) return;
+    
+    const endDate = new Date().toISOString().split('T')[0];
+    const rangesToPreload: string[] = [];
+    
+    // Preload previous and next ranges
+    if (currentIndex > 0) rangesToPreload.push(rangeOrder[currentIndex - 1]);
+    if (currentIndex < rangeOrder.length - 1) rangesToPreload.push(rangeOrder[currentIndex + 1]);
+    
+    // Preload in background
+    rangesToPreload.forEach(range => {
+      const startDate = calculateStartDate(range);
+      apiService.getAnalytics('category', startDate, endDate).catch(() => null);
+      apiService.getAnalytics('timeseries', startDate, endDate, 'day').catch(() => null);
+    });
   };
 
   const loadAnalytics = async () => {
