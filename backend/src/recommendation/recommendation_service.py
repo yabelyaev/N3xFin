@@ -19,7 +19,10 @@ from common.errors import ValidationError
 
 
 # Categories that represent positive financial behaviour — never suggest cutting these
-POSITIVE_CATEGORIES = {'savings', 'income', 'transfers', 'investment', 'retirement', 'atm & cash'}
+POSITIVE_CATEGORIES = {'savings', 'income', 'transfers', 'investment', 'retirement'}
+
+# Categories that need special handling (not positive, but not regular spending either)
+NEUTRAL_CATEGORIES = {'atm & cash', 'loans & debt'}  # ATM = cash spending, Loans = debt payments
 
 # Spike threshold: flag a category when Latest Month > (6m_avg * this multiplier)
 SPIKE_MULTIPLIER = 1.5
@@ -224,12 +227,14 @@ Total outflows: ${float(total_spending):.2f}
 {json.dumps({k: {'latestMonth': v['latest'], 'avgPriorMonths': v['avg'], 'howMuchHigher': f"{v['multiplier']}×"} for k, v in spike_categories.items()}, indent=2) if spike_categories else "None detected"}
 
 ## Instructions
-1. POSITIVE categories (Savings, Income, Transfers, Investments) are GREAT behaviours — celebrate them, never suggest cutting.
-2. For **spike categories**, diagnose the likely cause (seasonal, one-off, or a new habit?) and give specific advice.
-3. For recurring high spend, give targeted, realistic cuts — not generic advice like "spend less".
-4. Write naturally, warmly, and confidently — like a trusted advisor, not a risk disclaimer.
-5. Prioritise recommendations that will actually move the needle (high savings potential first).
-6. If a category has a spike, set `isSpike: true` and include `categoryTrends` with the month-by-month data so the user can drill in.
+1. POSITIVE categories (Savings, Income, Transfers, Investments, Retirement) are GREAT behaviours — celebrate them, never suggest cutting.
+2. ATM & Cash withdrawals are SPENDING (cash taken out to spend) — treat like any other expense category, NOT as savings.
+3. Loans & Debt payments are necessary obligations — acknowledge them but don't suggest cutting (suggest paying off faster instead).
+4. For **spike categories**, diagnose the likely cause (seasonal, one-off, or a new habit?) and give specific advice.
+5. For recurring high spend, give targeted, realistic cuts — not generic advice like "spend less".
+6. Write naturally, warmly, and confidently — like a trusted advisor, not a risk disclaimer.
+7. Prioritise recommendations that will actually move the needle (high savings potential first).
+8. If a category has a spike, set `isSpike: true` and include `categoryTrends` with the month-by-month data so the user can drill in.
 
 Respond ONLY with a JSON array. Each item:
 {{
@@ -343,6 +348,20 @@ Produce 3-6 recommendations. Focus on the ones with the most savings potential."
             'Transportation': [
                 'Combine errands into one trip to save on fuel',
                 'Compare your comprehensive insurance quote annually',
+                'Try public transport or bike for regular short commutes'
+            ],
+            'Utilities': [
+                'Compare electricity and gas providers — switching can save 10–20%',
+                'Check for any appliances left on standby 24/7',
+                'Contact your provider and ask for a loyalty discount'
+            ],
+            'ATM & Cash': [
+                'Track what you spend cash on — it\'s easy to lose track',
+                'Try using a debit card instead to keep better records',
+                'Set a weekly cash budget and stick to it',
+                'Consider if you really need cash or if card payments work better'
+            ],
+        }
                 'Try public transport or bike for regular short commutes'
             ],
             'Utilities': [

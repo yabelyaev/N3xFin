@@ -160,17 +160,17 @@ def main():
     """Generate test statements."""
     print("Generating Australian bank statements for testing...")
     
-    # Date range: 6 months ago to now
+    # Date range: 12 months ago to now (full year of data)
     end_date = datetime.now()
-    start_date = end_date - timedelta(days=180)
+    start_date = end_date - timedelta(days=365)
     
     # First Bank - Checking Account
     print("\n1. Generating First Bank statements...")
     bank1_transactions = generate_transactions(start_date, end_date, 'checking')
     
-    # Split into 3 x 2-month statements
+    # Split into 6 x 2-month statements (12 months total)
     months_per_statement = 60
-    for i in range(3):
+    for i in range(6):
         statement_start = start_date + timedelta(days=i * months_per_statement)
         statement_end = statement_start + timedelta(days=months_per_statement - 1)
         
@@ -201,7 +201,7 @@ def main():
     print("\n2. Generating Second Bank statements...")
     bank2_transactions = generate_transactions(start_date, end_date, 'savings')
     
-    for i in range(3):
+    for i in range(6):
         statement_start = start_date + timedelta(days=i * months_per_statement)
         statement_end = statement_start + timedelta(days=months_per_statement - 1)
         
@@ -230,11 +230,12 @@ def main():
     
     print("\n✅ Test statements generated successfully!")
     print("\nFiles created in test-data/ directory:")
-    print("  - 6 PDF files (3 First Bank + 3 Second Bank)")
-    print("  - 6 CSV files (3 First Bank + 3 Second Bank)")
+    print("  - 12 PDF files (6 First Bank + 6 Second Bank)")
+    print("  - 12 CSV files (6 First Bank + 6 Second Bank)")
+    print("  - Covers 12 months of data (full year)")
     print("\nYou can now upload these to test:")
     print("  ✓ Multi-bank support")
-    print("  ✓ 6-month trend analysis")
+    print("  ✓ Full year trend analysis")
     print("  ✓ Spending recommendations")
     print("  ✓ Anomaly detection")
     print("  ✓ Predictive alerts")
