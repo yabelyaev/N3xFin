@@ -17,15 +17,22 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_FORMATS = ['text/csv', 'application/pdf', 'application/vnd.ms-excel'];
 const ALLOWED_EXTENSIONS = ['.csv', '.pdf'];
 
+interface FileWithStatus {
+  file: File;
+  hash?: string;
+  isDuplicate: boolean;
+  duplicateInfo?: string;
+}
+
 export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<FileWithStatus[]>([]);
   const [validationError, setValidationError] = useState<ValidationError | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
-  const [bulkUploadResults, setBulkUploadResults] = useState<{success: number; failed: number; total: number} | null>(null);
+  const [bulkUploadResults, setBulkUploadResults] = useState<{success: number; failed: number; total: number; skipped: number} | null>(null);
   const [useLLM, setUseLLM] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
   const [fileHash, setFileHash] = useState<string | null>(null);
@@ -146,7 +153,7 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
     }
   };
 
-  const handleFileInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleFileInputChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
       const fileArray = Array.from(files);
@@ -165,13 +172,64 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
         // Single file - use existing logic
         handleFile(fileArray[0]);
       } else {
-        // Multiple files - prepare for bulk upload
-        setSelectedFiles(fileArray);
+        // Multiple files - check for duplicates
         setSelectedFile(null);
         setValidationError(null);
         setDuplicateWarning(null);
         setUploadSuccess(false);
         setBulkUploadResults(null);
+        setIsDuplicateChecking(true);
+
+        try {
+          // Get existing files
+          const res = await apiService.listFiles();
+          const existing: any[] = (res.data as any).files || [];
+
+          // Check each file for duplicates
+          const filesWithStatus: FileWithStatus[] = await Promise.all(
+            fileArray.map(async (file) => {
+              try {
+                const hash = await computeHash(file);
+                
+                // Check for hash match
+                let dupe = existing.find(f => f.fileHash && f.fileHash === hash);
+                
+                // Fallback: filename match
+                if (!dupe) {
+                  dupe = existing.find(f => {
+                    const cleanedName = f.filename.replace(/^\d{8}-\d{6}-[a-f0-9]+-/, '');
+                    return cleanedName === file.name;
+                  });
+                }
+
+                if (dupe) {
+                  const dupeName = dupe.filename.replace(/^\d{8}-\d{6}-[a-f0-9]+-/, '');
+                  const matchType = dupe.fileHash ? 'identical content' : 'same name';
+                  const uploadDate = new Date(dupe.lastModified).toLocaleDateString('en-US', { 
+                    year: 'numeric', month: 'short', day: 'numeric' 
+                  });
+                  return {
+                    file,
+                    hash,
+                    isDuplicate: true,
+                    duplicateInfo: `${matchType} as "${dupeName}" (uploaded ${uploadDate})`
+                  };
+                }
+
+                return { file, hash, isDuplicate: false };
+              } catch {
+                return { file, isDuplicate: false };
+              }
+            })
+          );
+
+          setSelectedFiles(filesWithStatus);
+        } catch {
+          // If duplicate check fails, proceed without it
+          setSelectedFiles(fileArray.map(file => ({ file, isDuplicate: false })));
+        } finally {
+          setIsDuplicateChecking(false);
+        }
       }
     }
   };
@@ -257,31 +315,54 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
     return fileKey;
   };
 
-  const handleBulkUpload = async () => {
+  const handleBulkUpload = async (skipDuplicates: boolean = true) => {
     if (selectedFiles.length === 0) return;
 
     setIsUploading(true);
     setUploadProgress(0);
     setValidationError(null);
-    setBulkUploadResults({ success: 0, failed: 0, total: selectedFiles.length });
+
+    // Filter out duplicates if requested
+    const filesToUpload = skipDuplicates 
+      ? selectedFiles.filter(f => !f.isDuplicate)
+      : selectedFiles;
+
+    const skippedCount = selectedFiles.length - filesToUpload.length;
+    
+    setBulkUploadResults({ 
+      success: 0, 
+      failed: 0, 
+      total: filesToUpload.length,
+      skipped: skippedCount
+    });
 
     let successCount = 0;
     let failedCount = 0;
 
-    for (let i = 0; i < selectedFiles.length; i++) {
-      const file = selectedFiles[i];
+    for (let i = 0; i < filesToUpload.length; i++) {
+      const fileWithStatus = filesToUpload[i];
       try {
         // Update progress
-        const baseProgress = (i / selectedFiles.length) * 100;
+        const baseProgress = (i / filesToUpload.length) * 100;
         setUploadProgress(Math.round(baseProgress));
 
         // Upload file
-        await uploadSingleFile(file);
+        await uploadSingleFile(fileWithStatus.file, fileWithStatus.hash);
         successCount++;
-        setBulkUploadResults({ success: successCount, failed: failedCount, total: selectedFiles.length });
+        setBulkUploadResults({ 
+          success: successCount, 
+          failed: failedCount, 
+          total: filesToUpload.length,
+          skipped: skippedCount
+        });
       } catch (error) {
         failedCount++;
-        setBulkUploadResults({ success: successCount, failed: failedCount, total: selectedFiles.length });
+        setBulkUploadResults({ 
+          success: successCount, 
+          failed: failedCount, 
+          total: filesToUpload.length,
+          skipped: skippedCount
+        });
       }
     }
 
@@ -432,75 +513,125 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
 
             {selectedFiles.length > 0 && !uploadSuccess && (
               <div className="space-y-4">
-                <div className="max-h-48 overflow-y-auto space-y-2">
-                  {selectedFiles.map((file, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                      <div className="flex items-center space-x-2">
-                        <svg
-                          className="h-6 w-6 text-blue-500"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
+                {isDuplicateChecking ? (
+                  <div className="text-center py-4">
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <p className="mt-2 text-sm text-gray-600">Checking for duplicates...</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="max-h-48 overflow-y-auto space-y-2">
+                      {selectedFiles.map((fileWithStatus, index) => (
+                        <div 
+                          key={index} 
+                          className={`flex items-center justify-between p-2 rounded ${
+                            fileWithStatus.isDuplicate ? 'bg-amber-50 border border-amber-200' : 'bg-gray-50'
+                          }`}
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                          />
-                        </svg>
-                        <div className="text-left">
-                          <p className="text-sm font-medium text-gray-900">{file.name}</p>
-                          <p className="text-xs text-gray-500">
-                            {(file.size / 1024 / 1024).toFixed(2)} MB
-                          </p>
+                          <div className="flex items-center space-x-2 flex-1">
+                            <svg
+                              className={`h-6 w-6 ${fileWithStatus.isDuplicate ? 'text-amber-500' : 'text-blue-500'}`}
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              {fileWithStatus.isDuplicate ? (
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+                                />
+                              ) : (
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                />
+                              )}
+                            </svg>
+                            <div className="text-left flex-1">
+                              <p className={`text-sm font-medium ${fileWithStatus.isDuplicate ? 'text-amber-900' : 'text-gray-900'}`}>
+                                {fileWithStatus.file.name}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {(fileWithStatus.file.size / 1024 / 1024).toFixed(2)} MB
+                                {fileWithStatus.isDuplicate && (
+                                  <span className="ml-2 text-amber-600">• Duplicate: {fileWithStatus.duplicateInfo}</span>
+                                )}
+                              </p>
+                            </div>
+                          </div>
                         </div>
+                      ))}
+                    </div>
+
+                    {isUploading && (
+                      <div className="space-y-2" role="status" aria-live="polite">
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${uploadProgress}%` }}
+                            role="progressbar"
+                            aria-valuenow={uploadProgress}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                            aria-label="Upload progress"
+                          />
+                        </div>
+                        <p className="text-sm text-gray-600">
+                          Uploading {bulkUploadResults?.success || 0} of {bulkUploadResults?.total || 0} files...
+                          {bulkUploadResults && bulkUploadResults.skipped > 0 && (
+                            <span className="text-amber-600"> ({bulkUploadResults.skipped} skipped)</span>
+                          )}
+                        </p>
+                        {bulkUploadResults && bulkUploadResults.failed > 0 && (
+                          <p className="text-xs text-red-600">
+                            {bulkUploadResults.failed} file(s) failed
+                          </p>
+                        )}
                       </div>
-                    </div>
-                  ))}
-                </div>
-
-                {isUploading && (
-                  <div className="space-y-2" role="status" aria-live="polite">
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${uploadProgress}%` }}
-                        role="progressbar"
-                        aria-valuenow={uploadProgress}
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                        aria-label="Upload progress"
-                      />
-                    </div>
-                    <p className="text-sm text-gray-600">
-                      Uploading {bulkUploadResults?.success || 0} of {selectedFiles.length} files...
-                    </p>
-                    {bulkUploadResults && bulkUploadResults.failed > 0 && (
-                      <p className="text-xs text-red-600">
-                        {bulkUploadResults.failed} file(s) failed
-                      </p>
                     )}
-                  </div>
-                )}
 
-                {!isUploading && (
-                  <div className="flex space-x-3 justify-center">
-                    <button
-                      type="button"
-                      onClick={handleBulkUpload}
-                      className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    >
-                      Upload {selectedFiles.length} File{selectedFiles.length > 1 ? 's' : ''}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleReset}
-                      className="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
-                    >
-                      Cancel
-                    </button>
-                  </div>
+                    {!isUploading && (
+                      <>
+                        {selectedFiles.some(f => f.isDuplicate) && (
+                          <div className="p-3 bg-amber-50 border border-amber-200 rounded-md">
+                            <p className="text-sm text-amber-800">
+                              {selectedFiles.filter(f => f.isDuplicate).length} duplicate file(s) detected. 
+                              They will be skipped by default.
+                            </p>
+                          </div>
+                        )}
+                        <div className="flex space-x-3 justify-center">
+                          <button
+                            type="button"
+                            onClick={() => handleBulkUpload(true)}
+                            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                          >
+                            Upload {selectedFiles.filter(f => !f.isDuplicate).length} New File{selectedFiles.filter(f => !f.isDuplicate).length !== 1 ? 's' : ''}
+                          </button>
+                          {selectedFiles.some(f => f.isDuplicate) && (
+                            <button
+                              type="button"
+                              onClick={() => handleBulkUpload(false)}
+                              className="px-4 py-2 bg-amber-500 text-white text-sm font-medium rounded-md hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500"
+                            >
+                              Upload All Anyway
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={handleReset}
+                            className="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -632,7 +763,7 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
                 </svg>
                 <p className="text-sm font-medium text-green-600">
                   {bulkUploadResults 
-                    ? `Upload complete! ${bulkUploadResults.success} of ${bulkUploadResults.total} files uploaded successfully${bulkUploadResults.failed > 0 ? `, ${bulkUploadResults.failed} failed` : ''}`
+                    ? `Upload complete! ${bulkUploadResults.success} of ${bulkUploadResults.total} files uploaded successfully${bulkUploadResults.failed > 0 ? `, ${bulkUploadResults.failed} failed` : ''}${bulkUploadResults.skipped > 0 ? `, ${bulkUploadResults.skipped} skipped` : ''}`
                     : 'Upload successful!'}
                 </p>
                 <button
