@@ -606,6 +606,48 @@ Resources:
             Path: /recommendations
             Method: GET
 
+  # Profile Lambda Functions
+  GetProfileFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: n3xfin-get-profile
+      CodeUri: src/
+      Handler: profile.get_profile.lambda_handler
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+              Resource:
+                - !GetAtt TransactionsTable.Arn
+      Events:
+        GetProfileApi:
+          Type: Api
+          Properties:
+            Path: /profile
+            Method: GET
+
+  SaveProfileFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: n3xfin-save-profile
+      CodeUri: src/
+      Handler: profile.save_profile.lambda_handler
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+                - dynamodb:GetItem
+              Resource:
+                - !GetAtt TransactionsTable.Arn
+      Events:
+        SaveProfileApi:
+          Type: Api
+          Properties:
+            Path: /profile
+            Method: POST
+
   # Report Lambda Functions
   GenerateReportFunction:
     Type: AWS::Serverless::Function

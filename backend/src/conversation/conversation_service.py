@@ -13,6 +13,7 @@ import json
 
 from common.config import Config
 from common.errors import ValidationError
+from profile.profile_service import ProfileService
 
 
 class ConversationService:
@@ -68,8 +69,11 @@ class ConversationService:
             question: User's question
             
         Returns:
-            Financial context including transactions and summaries
+            Financial context including transactions, summaries, and profile
         """
+        # Get user profile for personalized context
+        profile_summary = ProfileService.get_profile_summary(user_id)
+        
         # Determine time range based on question keywords
         time_range = self._detect_time_range(question)
         
@@ -87,6 +91,7 @@ class ConversationService:
         total_spending = sum(data['total'] for data in category_totals.values())
         
         return {
+            'profile': profile_summary,
             'timeRange': {
                 'start': time_range['start'].isoformat(),
                 'end': time_range['end'].isoformat(),
@@ -238,11 +243,14 @@ Please provide a clear, concise answer based on the financial data provided. If 
                 "system": """You are a knowledgeable personal financial advisor with expertise in budgeting, spending analysis, and financial planning. 
 
 Your role:
-- Analyze the user's transaction data to provide personalized, actionable financial advice
-- Give specific, data-driven recommendations based on their actual spending patterns
+- Analyze the user's transaction data AND their financial profile (goals, income, debts, occupation) to provide personalized, actionable financial advice
+- Give specific, data-driven recommendations based on their actual spending patterns and stated financial goals
+- Help users achieve their specific goals (e.g., paying off debt, saving for college, building emergency fund)
+- Consider their income sources and occupation when suggesting ways to increase income
 - Be empathetic and non-judgmental about spending habits
-- Provide practical tips that are realistic and achievable
-- When suggesting savings, be specific about amounts and categories
+- Provide practical tips that are realistic and achievable given their financial situation
+- When suggesting savings, be specific about amounts, categories, and how it helps their goals
+- If they have goals, always relate advice back to goal progress (e.g., "Cutting dining by $200/month gets you to your college fund goal 8 months faster")
 - If asked about investments or complex financial products, acknowledge you're focused on spending analysis and budgeting
 - Always base your advice on the actual data provided - don't make assumptions
 - If data is insufficient, clearly explain what additional information would help
@@ -252,7 +260,8 @@ Guidelines:
 - Use specific numbers from their data when relevant
 - Prioritize actionable advice over general tips
 - Be encouraging and supportive
-- Focus on spending optimization, not investment advice"""
+- Focus on spending optimization and goal achievement, not investment advice
+- If they have an occupation listed, you can suggest career-related income opportunities (e.g., freelancing, side gigs relevant to their field)"""
             }
             
             response = self.bedrock.invoke_model(

@@ -16,6 +16,7 @@ import json
 
 from common.config import Config
 from common.errors import ValidationError
+from profile.profile_service import ProfileService
 
 
 # Categories that represent positive financial behaviour — never suggest cutting these
@@ -45,12 +46,15 @@ class RecommendationService:
         Generate consultant-grade savings recommendations.
 
         Pulls 6 months of data, builds month-by-month category trends,
-        detects spending spikes, then passes a rich context to Claude.
+        detects spending spikes, then passes a rich context to Claude including user profile.
         """
         end_date = datetime.now(UTC)
         start_date = end_date - timedelta(days=183)  # ~6 months
 
         transactions = self._get_transactions_in_range(user_id, start_date, end_date)
+        
+        # Get user profile for goal-oriented recommendations
+        profile_summary = ProfileService.get_profile_summary(user_id)
 
         if len(transactions) < 5:
             return [{
@@ -79,9 +83,9 @@ class RecommendationService:
             for cat in monthly_by_category
         )
 
-        # Generate recommendations via AI
+        # Generate recommendations via AI with profile context
         recommendations = self._generate_ai_recommendations(
-            monthly_by_category, spike_categories, latest_month, total_spending
+            monthly_by_category, spike_categories, latest_month, total_spending, profile_summary
         )
 
         return self.rank_recommendations(recommendations)
@@ -183,7 +187,8 @@ class RecommendationService:
         monthly_by_category: Dict,
         spike_categories: Dict,
         latest_month: str,
-        total_spending: Decimal
+        total_spending: Decimal,
+        profile_summary: str = ""
     ) -> List[Dict]:
         try:
             # Build spending summary for latest month
@@ -213,9 +218,11 @@ class RecommendationService:
             for cat, monthly in monthly_by_category.items():
                 trend_table[cat] = {m: round(float(monthly.get(m, 0)), 2) for m in all_months}
 
+            profile_context = f"\n## User Financial Profile\n{profile_summary}\n" if profile_summary else ""
+
             prompt = f"""You are a senior personal finance advisor — the calibre of McKinsey, Goldman Sachs, or a top-tier CFP. 
 Your job is to give {self._format_month(latest_month)} spending a professional, empathetic review and produce 3-6 high-impact, specific recommendations.
-
+{profile_context}
 ## Latest Month Summary ({self._format_month(latest_month)})
 Total outflows: ${float(total_spending):.2f}
 {json.dumps(latest_summary, indent=2)}
@@ -235,11 +242,13 @@ Total outflows: ${float(total_spending):.2f}
 6. Write naturally, warmly, and confidently — like a trusted advisor, not a risk disclaimer.
 7. Prioritise recommendations that will actually move the needle (high savings potential first).
 8. If a category has a spike, set `isSpike: true` and include `categoryTrends` with the month-by-month data so the user can drill in.
+9. **IMPORTANT**: If the user has financial goals, ALWAYS relate recommendations to goal progress. For example: "Cutting dining by $200/month would get you to your $50,000 college fund goal 8 months faster" or "This saving would cover 40% of your monthly debt payment goal."
+10. If the user has an occupation, you can suggest career-related income opportunities (e.g., "As a software engineer, consider freelancing on weekends for an extra $1-2k/month").
 
 Respond ONLY with a JSON array. Each item:
 {{
   "title": "Short, motivating title",
-  "description": "2-3 sentences of specific, actionable advice. Reference actual dollar amounts and months where relevant.",
+  "description": "2-3 sentences of specific, actionable advice. Reference actual dollar amounts and months where relevant. If user has goals, show how this helps achieve them.",
   "category": "Category name",
   "potentialSavings": <realistic monthly savings number>,
   "actionItems": ["Specific action 1", "Specific action 2", "Specific action 3"],

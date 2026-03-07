@@ -8,6 +8,7 @@ import { FileUpload } from './components/upload';
 import { ChatInterface } from './components/conversation';
 import { ReportsPage } from './components/reports';
 import { SettingsPage } from './components/settings';
+import { ProfileGoalsPage } from './components/profile/ProfileGoalsPage';
 import { Navigation } from './components/layout';
 import { ErrorBoundary, ToastProvider, LoadingSpinner } from './components/common';
 
@@ -195,6 +196,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <SettingsPageWrapper />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <ProfileGoalsPage />
                   </ProtectedRoute>
                 }
               />

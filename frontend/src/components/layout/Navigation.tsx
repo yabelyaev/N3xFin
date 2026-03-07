@@ -19,6 +19,7 @@ export function Navigation() {
     { path: '/upload', label: '📤 Upload', icon: '📤' },
     { path: '/conversation', label: '💬 Chat', icon: '💬' },
     { path: '/reports', label: '📄 Reports', icon: '📄' },
+    { path: '/profile', label: '🎯 Goals', icon: '🎯' },
     { path: '/settings', label: '⚙️ Settings', icon: '⚙️' },
   ];
 

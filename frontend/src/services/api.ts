@@ -335,6 +335,15 @@ class ApiService {
     }
     return this.client.put('/user/preferences', preferences);
   }
+
+  // Profile endpoints
+  async getProfile() {
+    return this.client.get('/profile');
+  }
+
+  async saveProfile(profile: any) {
+    return this.client.post('/profile', profile);
+  }
 }
 
 export const apiService = new ApiService();
