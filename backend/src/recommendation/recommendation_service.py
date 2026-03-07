@@ -362,14 +362,6 @@ Produce 3-6 recommendations. Focus on the ones with the most savings potential."
                 'Consider if you really need cash or if card payments work better'
             ],
         }
-                'Try public transport or bike for regular short commutes'
-            ],
-            'Utilities': [
-                'Compare electricity and gas providers — switching can save 10–20%',
-                'Check for any appliances left on standby 24/7',
-                'Contact your provider and ask for a loyalty discount'
-            ],
-        }
 
         for cat, spike in sorted(spike_categories.items(), key=lambda x: x[1]['multiplier'], reverse=True):
             latest_amt = spike['latest']

@@ -20,10 +20,12 @@ const ALLOWED_EXTENSIONS = ['.csv', '.pdf'];
 export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [validationError, setValidationError] = useState<ValidationError | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [bulkUploadResults, setBulkUploadResults] = useState<{success: number; failed: number; total: number} | null>(null);
   const [useLLM, setUseLLM] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
   const [fileHash, setFileHash] = useState<string | null>(null);
@@ -147,12 +149,149 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
   const handleFileInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      handleFile(files[0]);
+      const fileArray = Array.from(files);
+      
+      // Validate all files first
+      const invalidFiles = fileArray.filter(f => validateFile(f) !== null);
+      if (invalidFiles.length > 0) {
+        setValidationError({
+          type: 'format',
+          message: `${invalidFiles.length} file(s) are invalid. Only CSV and PDF files under 10MB are allowed.`
+        });
+        return;
+      }
+      
+      if (fileArray.length === 1) {
+        // Single file - use existing logic
+        handleFile(fileArray[0]);
+      } else {
+        // Multiple files - prepare for bulk upload
+        setSelectedFiles(fileArray);
+        setSelectedFile(null);
+        setValidationError(null);
+        setDuplicateWarning(null);
+        setUploadSuccess(false);
+        setBulkUploadResults(null);
+      }
     }
   };
 
   const handleBrowseClick = () => {
     fileInputRef.current?.click();
+  };
+
+  const uploadSingleFile = async (file: File, hash?: string) => {
+    const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://wiqpao4gze.execute-api.us-east-1.amazonaws.com/Prod';
+    
+    // Step 1: Get upload URL from backend
+    const urlResponse = await fetch(`${API_BASE}/upload/url`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+      },
+      body: JSON.stringify({
+        filename: file.name,
+        fileSize: file.size
+      }),
+    });
+
+    if (!urlResponse.ok) {
+      throw new Error('Failed to get upload URL');
+    }
+
+    const { uploadUrl, fileKey } = await urlResponse.json();
+
+    // Step 2: Upload file to S3
+    const uploadResponse = await fetch(uploadUrl, {
+      method: 'PUT',
+      body: file,
+      headers: {
+        'Content-Type': file.type,
+      },
+    });
+
+    if (!uploadResponse.ok) {
+      throw new Error('Failed to upload file to S3');
+    }
+
+    // Wait a moment for S3 consistency
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Step 3: Verify upload
+    const verifyResponse = await fetch(`${API_BASE}/upload/verify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+      },
+      body: JSON.stringify({ fileKey, fileHash: hash }),
+    });
+
+    if (!verifyResponse.ok) {
+      const errorData = await verifyResponse.json().catch(() => ({}));
+      const errorMsg = errorData.error?.message || errorData.message || 'Failed to verify upload';
+      throw new Error(errorMsg);
+    }
+
+    // Step 4: Trigger async parsing
+    const parseResponse = await fetch(`${API_BASE}/parser/parse`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+      },
+      body: JSON.stringify({
+        fileKey,
+        bucket: 'n3xfin-data-087305321237',
+        useLLM: useLLM || file.name.toLowerCase().endsWith('.pdf'),
+      }),
+    });
+
+    if (!parseResponse.ok && parseResponse.status !== 202) {
+      const errorData = await parseResponse.json().catch(() => ({}));
+      const errorMsg = errorData.error?.message || errorData.message || 'Failed to start parsing';
+      throw new Error(errorMsg);
+    }
+
+    return fileKey;
+  };
+
+  const handleBulkUpload = async () => {
+    if (selectedFiles.length === 0) return;
+
+    setIsUploading(true);
+    setUploadProgress(0);
+    setValidationError(null);
+    setBulkUploadResults({ success: 0, failed: 0, total: selectedFiles.length });
+
+    let successCount = 0;
+    let failedCount = 0;
+
+    for (let i = 0; i < selectedFiles.length; i++) {
+      const file = selectedFiles[i];
+      try {
+        // Update progress
+        const baseProgress = (i / selectedFiles.length) * 100;
+        setUploadProgress(Math.round(baseProgress));
+
+        // Upload file
+        await uploadSingleFile(file);
+        successCount++;
+        setBulkUploadResults({ success: successCount, failed: failedCount, total: selectedFiles.length });
+      } catch (error) {
+        failedCount++;
+        setBulkUploadResults({ success: successCount, failed: failedCount, total: selectedFiles.length });
+      }
+    }
+
+    setUploadProgress(100);
+    setIsUploading(false);
+    setUploadSuccess(true);
+
+    if (onUploadComplete) {
+      onUploadComplete('bulk-upload-complete');
+    }
   };
 
   const handleUpload = async () => {
@@ -165,80 +304,7 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
     try {
       // Step 1: Get upload URL from backend
       setUploadProgress(10);
-      const urlResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://wiqpao4gze.execute-api.us-east-1.amazonaws.com/Prod'}/upload/url`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-        },
-        body: JSON.stringify({
-          filename: selectedFile.name,
-          fileSize: selectedFile.size
-        }),
-      });
-
-      if (!urlResponse.ok) {
-        throw new Error('Failed to get upload URL');
-      }
-
-      const { uploadUrl, fileKey } = await urlResponse.json();
-
-      // Step 2: Upload file to S3
-      setUploadProgress(30);
-      const uploadResponse = await fetch(uploadUrl, {
-        method: 'PUT',
-        body: selectedFile,
-        headers: {
-          'Content-Type': selectedFile.type,
-        },
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error('Failed to upload file to S3');
-      }
-
-      setUploadProgress(60);
-
-      // Wait a moment for S3 consistency
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Step 3: Verify upload (send hash so it's stored for future duplicate checks)
-      const verifyResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://wiqpao4gze.execute-api.us-east-1.amazonaws.com/Prod'}/upload/verify`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-        },
-        body: JSON.stringify({ fileKey, fileHash }),
-      });
-
-      if (!verifyResponse.ok) {
-        const errorData = await verifyResponse.json().catch(() => ({}));
-        const errorMsg = errorData.error?.message || errorData.message || 'Failed to verify upload';
-        throw new Error(errorMsg);
-      }
-
-      setUploadProgress(80);
-
-      // Step 4: Trigger async parsing (returns 202 immediately)
-      const parseResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://wiqpao4gze.execute-api.us-east-1.amazonaws.com/Prod'}/parser/parse`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-        },
-        body: JSON.stringify({
-          fileKey,
-          bucket: 'n3xfin-data-087305321237',
-          useLLM: useLLM || selectedFile.name.toLowerCase().endsWith('.pdf'),
-        }),
-      });
-
-      if (!parseResponse.ok && parseResponse.status !== 202) {
-        const errorData = await parseResponse.json().catch(() => ({}));
-        const errorMsg = errorData.error?.message || errorData.message || 'Failed to start parsing';
-        throw new Error(errorMsg);
-      }
+      await uploadSingleFile(selectedFile, fileHash || undefined);
 
       // Step 5: Poll analytics until transactions appear (max 90s)
       setUploadProgress(90);
@@ -270,7 +336,7 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
       setUploadSuccess(true);
 
       if (onUploadComplete) {
-        onUploadComplete(fileKey);
+        onUploadComplete('single-upload-complete');
       }
     } catch (error) {
       setIsUploading(false);
@@ -288,11 +354,13 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
 
   const handleReset = () => {
     setSelectedFile(null);
+    setSelectedFiles([]);
     setValidationError(null);
     setDuplicateWarning(null);
     setFileHash(null);
     setUploadProgress(0);
     setUploadSuccess(false);
+    setBulkUploadResults(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -319,14 +387,15 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
             ref={fileInputRef}
             type="file"
             accept=".csv,.pdf"
+            multiple
             onChange={handleFileInputChange}
             className="hidden"
-            aria-label="Choose file to upload"
+            aria-label="Choose files to upload"
             id="file-upload-input"
           />
 
           <div className="text-center">
-            {!selectedFile && !uploadSuccess && (
+            {!selectedFile && selectedFiles.length === 0 && !uploadSuccess && (
               <>
                 <svg
                   className="mx-auto h-12 w-12 text-gray-400"
@@ -344,7 +413,7 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
                 </svg>
                 <div className="mt-4">
                   <p className="text-sm text-gray-600">
-                    Drag and drop your bank statement here, or
+                    Drag and drop your bank statement(s) here, or
                   </p>
                   <button
                     type="button"
@@ -356,9 +425,84 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
                   </button>
                 </div>
                 <p className="mt-2 text-xs text-gray-500">
-                  CSV or PDF files up to 10MB
+                  CSV or PDF files up to 10MB (multiple files supported)
                 </p>
               </>
+            )}
+
+            {selectedFiles.length > 0 && !uploadSuccess && (
+              <div className="space-y-4">
+                <div className="max-h-48 overflow-y-auto space-y-2">
+                  {selectedFiles.map((file, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                      <div className="flex items-center space-x-2">
+                        <svg
+                          className="h-6 w-6 text-blue-500"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                          />
+                        </svg>
+                        <div className="text-left">
+                          <p className="text-sm font-medium text-gray-900">{file.name}</p>
+                          <p className="text-xs text-gray-500">
+                            {(file.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {isUploading && (
+                  <div className="space-y-2" role="status" aria-live="polite">
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${uploadProgress}%` }}
+                        role="progressbar"
+                        aria-valuenow={uploadProgress}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-label="Upload progress"
+                      />
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      Uploading {bulkUploadResults?.success || 0} of {selectedFiles.length} files...
+                    </p>
+                    {bulkUploadResults && bulkUploadResults.failed > 0 && (
+                      <p className="text-xs text-red-600">
+                        {bulkUploadResults.failed} file(s) failed
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {!isUploading && (
+                  <div className="flex space-x-3 justify-center">
+                    <button
+                      type="button"
+                      onClick={handleBulkUpload}
+                      className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      Upload {selectedFiles.length} File{selectedFiles.length > 1 ? 's' : ''}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleReset}
+                      className="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
 
             {selectedFile && !uploadSuccess && (
@@ -486,14 +630,18 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
                     d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
-                <p className="text-sm font-medium text-green-600">Upload successful!</p>
+                <p className="text-sm font-medium text-green-600">
+                  {bulkUploadResults 
+                    ? `Upload complete! ${bulkUploadResults.success} of ${bulkUploadResults.total} files uploaded successfully${bulkUploadResults.failed > 0 ? `, ${bulkUploadResults.failed} failed` : ''}`
+                    : 'Upload successful!'}
+                </p>
                 <button
                   type="button"
                   onClick={handleReset}
                   className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                   aria-label="Upload another file"
                 >
-                  Upload Another File
+                  Upload More Files
                 </button>
               </div>
             )}
