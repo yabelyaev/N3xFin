@@ -596,6 +596,20 @@ export const FileUpload = ({ onUploadComplete, onUploadError }: FileUploadProps)
 
                     {!isUploading && (
                       <>
+                        {selectedFiles.some(f => f.file.name.toLowerCase().endsWith('.pdf')) && (
+                          <div className="flex items-center justify-center space-x-2 pb-2">
+                            <input
+                              type="checkbox"
+                              id="use-llm-bulk"
+                              checked={useLLM}
+                              onChange={(e) => setUseLLM(e.target.checked)}
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                            <label htmlFor="use-llm-bulk" className="text-sm text-gray-700">
+                              Use AI vision for parsing PDFs (recommended for complex statements)
+                            </label>
+                          </div>
+                        )}
                         {selectedFiles.some(f => f.isDuplicate) && (
                           <div className="p-3 bg-amber-50 border border-amber-200 rounded-md">
                             <p className="text-sm text-amber-800">
