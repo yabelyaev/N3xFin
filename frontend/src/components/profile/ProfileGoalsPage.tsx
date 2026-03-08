@@ -27,15 +27,30 @@ interface Debt {
 
 interface Profile {
   occupation: string;
+  currency: string;
   income_sources: IncomeSource[];
   goals: Goal[];
   debts: Debt[];
   fixed_expenses: Record<string, number>;
 }
 
+const CURRENCIES = [
+  { code: 'USD', symbol: '$', name: 'US Dollar' },
+  { code: 'EUR', symbol: '€', name: 'Euro' },
+  { code: 'GBP', symbol: '£', name: 'British Pound' },
+  { code: 'AUD', symbol: 'A$', name: 'Australian Dollar' },
+  { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar' },
+  { code: 'JPY', symbol: '¥', name: 'Japanese Yen' },
+  { code: 'CNY', symbol: '¥', name: 'Chinese Yuan' },
+  { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
+  { code: 'BRL', symbol: 'R$', name: 'Brazilian Real' },
+  { code: 'ZAR', symbol: 'R', name: 'South African Rand' },
+];
+
 export const ProfileGoalsPage = () => {
   const [profile, setProfile] = useState<Profile>({
     occupation: '',
+    currency: 'USD',
     income_sources: [],
     goals: [],
     debts: [],
@@ -44,6 +59,8 @@ export const ProfileGoalsPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+
+  const currencySymbol = CURRENCIES.find(c => c.code === profile.currency)?.symbol || '$';
 
   useEffect(() => {
     loadProfile();
@@ -118,25 +135,52 @@ export const ProfileGoalsPage = () => {
         </p>
       </div>
 
-      {/* Occupation */}
-      <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-        <div className="flex items-center mb-4">
-          <span className="text-2xl mr-3">💼</span>
-          <h2 className="text-xl font-semibold text-gray-900">Your Occupation</h2>
+      {/* Occupation & Currency */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+          <div className="flex items-center mb-4">
+            <span className="text-2xl mr-3">💼</span>
+            <h2 className="text-xl font-semibold text-gray-900">Your Occupation</h2>
+          </div>
+          <input
+            type="text"
+            value={profile.occupation}
+            onChange={(e) => setProfile({ ...profile, occupation: e.target.value })}
+            placeholder="e.g., Software Engineer, Teacher, Business Owner"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+          />
+          <p className="mt-2 text-sm text-gray-500 flex items-center">
+            <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+            </svg>
+            AI can suggest career-related income opportunities
+          </p>
         </div>
-        <input
-          type="text"
-          value={profile.occupation}
-          onChange={(e) => setProfile({ ...profile, occupation: e.target.value })}
-          placeholder="e.g., Software Engineer, Teacher, Business Owner"
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-        />
-        <p className="mt-2 text-sm text-gray-500 flex items-center">
-          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-          </svg>
-          AI can suggest career-related income opportunities based on your occupation
-        </p>
+
+        <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+          <div className="flex items-center mb-4">
+            <span className="text-2xl mr-3">💱</span>
+            <h2 className="text-xl font-semibold text-gray-900">Currency</h2>
+          </div>
+          <select
+            value={profile.currency}
+            onChange={(e) => setProfile({ ...profile, currency: e.target.value })}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition appearance-none bg-white"
+            style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 1rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em' }}
+          >
+            {CURRENCIES.map(curr => (
+              <option key={curr.code} value={curr.code}>
+                {curr.symbol} {curr.name} ({curr.code})
+              </option>
+            ))}
+          </select>
+          <p className="mt-2 text-sm text-gray-500 flex items-center">
+            <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+            </svg>
+            All amounts will be displayed in this currency
+          </p>
+        </div>
       </div>
 
       {/* Financial Goals */}
@@ -212,7 +256,7 @@ export const ProfileGoalsPage = () => {
                           Target Amount
                         </label>
                         <div className="relative">
-                          <span className="absolute left-3 top-2.5 text-gray-500">$</span>
+                          <span className="absolute left-3 top-2.5 text-gray-500">{currencySymbol}</span>
                           <input
                             type="text"
                             inputMode="numeric"
@@ -231,7 +275,7 @@ export const ProfileGoalsPage = () => {
                           Current Amount
                         </label>
                         <div className="relative">
-                          <span className="absolute left-3 top-2.5 text-gray-500">$</span>
+                          <span className="absolute left-3 top-2.5 text-gray-500">{currencySymbol}</span>
                           <input
                             type="text"
                             inputMode="numeric"
@@ -278,7 +322,7 @@ export const ProfileGoalsPage = () => {
                       <div className="flex justify-between items-center mb-2">
                         <span className="text-sm font-medium text-gray-700">Progress</span>
                         <span className="text-sm font-semibold text-gray-900">
-                          ${goal.current_amount.toLocaleString()} / ${goal.target_amount.toLocaleString()} ({Math.round(progress)}%)
+                          {currencySymbol}{goal.current_amount.toLocaleString()} / {currencySymbol}{goal.target_amount.toLocaleString()} ({Math.round(progress)}%)
                         </span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">

@@ -52,6 +52,7 @@ class ProfileService:
                 'PK': f'USER#{user_id}',
                 'SK': 'PROFILE',
                 'occupation': profile_data.get('occupation', ''),
+                'currency': profile_data.get('currency', 'USD'),
                 'income_sources': profile_data.get('income_sources', []),
                 'goals': profile_data.get('goals', []),
                 'debts': profile_data.get('debts', []),
@@ -76,6 +77,7 @@ class ProfileService:
         if profile is None:
             profile = {
                 'occupation': '',
+                'currency': 'USD',
                 'income_sources': [],
                 'goals': [],
                 'debts': [],
@@ -138,6 +140,10 @@ class ProfileService:
         
         summary_parts = []
         
+        # Currency
+        currency = profile.get('currency', 'USD')
+        currency_symbol = {'USD': '$', 'EUR': '€', 'GBP': '£', 'AUD': 'A$', 'CAD': 'C$', 'JPY': '¥', 'CNY': '¥', 'INR': '₹', 'BRL': 'R$', 'ZAR': 'R'}.get(currency, '$')
+        
         # Occupation
         if profile.get('occupation'):
             summary_parts.append(f"Occupation: {profile['occupation']}")
@@ -148,11 +154,11 @@ class ProfileService:
             income_list = []
             for source in income_sources:
                 amount = source.get('monthly_amount', 0)
-                income_list.append(f"{source.get('type', 'Unknown')}: ${amount:,.2f}/month")
+                income_list.append(f"{source.get('type', 'Unknown')}: {currency_symbol}{amount:,.2f}/month")
             summary_parts.append(f"Income sources: {', '.join(income_list)}")
             
             total_income = sum(s.get('monthly_amount', 0) for s in income_sources)
-            summary_parts.append(f"Total monthly income: ${total_income:,.2f}")
+            summary_parts.append(f"Total monthly income: {currency_symbol}{total_income:,.2f}")
         
         # Goals
         goals = profile.get('goals', [])
@@ -169,7 +175,7 @@ class ProfileService:
                 progress = (current / target * 100) if target > 0 else 0
                 summary_parts.append(
                     f"  - {goal.get('name', 'Unnamed goal')} ({goal_type}): "
-                    f"${current:,.2f} / ${target:,.2f} ({progress:.1f}% complete) "
+                    f"{currency_symbol}{current:,.2f} / {currency_symbol}{target:,.2f} ({progress:.1f}% complete) "
                     f"[Priority: {priority}, Deadline: {deadline}]"
                 )
         
@@ -184,8 +190,8 @@ class ProfileService:
                 min_payment = debt.get('minimum_payment', 0)
                 summary_parts.append(
                     f"  - {debt.get('name', 'Unnamed debt')} ({debt_type}): "
-                    f"${balance:,.2f} balance, {interest}% APR, "
-                    f"${min_payment:,.2f}/month minimum"
+                    f"{currency_symbol}{balance:,.2f} balance, {interest}% APR, "
+                    f"{currency_symbol}{min_payment:,.2f}/month minimum"
                 )
         
         # Fixed expenses
@@ -193,10 +199,10 @@ class ProfileService:
         if fixed_expenses:
             summary_parts.append("\nFixed Monthly Expenses:")
             for category, amount in fixed_expenses.items():
-                summary_parts.append(f"  - {category}: ${amount:,.2f}")
+                summary_parts.append(f"  - {category}: {currency_symbol}{amount:,.2f}")
             
             total_fixed = sum(fixed_expenses.values())
-            summary_parts.append(f"Total fixed expenses: ${total_fixed:,.2f}/month")
+            summary_parts.append(f"Total fixed expenses: {currency_symbol}{total_fixed:,.2f}/month")
         
         return "\n".join(summary_parts)
     

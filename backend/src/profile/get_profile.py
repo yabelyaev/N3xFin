@@ -32,6 +32,7 @@ def lambda_handler(event, context):
             # Return empty profile structure
             profile = {
                 'occupation': '',
+                'currency': 'USD',
                 'income_sources': [],
                 'goals': [],
                 'debts': [],
