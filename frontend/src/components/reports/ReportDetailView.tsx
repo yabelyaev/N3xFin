@@ -64,7 +64,7 @@ export const ReportDetailView: React.FC<ReportDetailViewProps> = ({
       const response = await apiService.getReport(reportId);
       setReport(response.data);
     } catch (err: any) {
-      setError(err.response?.data?.error?.message || 'Failed to load report');
+      setError(err.response?.data?.error || 'Failed to load report');
     } finally {
       setLoading(false);
     }

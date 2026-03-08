@@ -117,6 +117,10 @@ class ApiService {
     return this.client.post('/categorization/categorize', { transactionIds });
   }
 
+  async getCategorizationStatus() {
+    return this.client.get('/categorization/status');
+  }
+
   // Statement management endpoints
   async deleteStatement(fileKey?: string) {
     const params: Record<string, string> = {};

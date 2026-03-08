@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { CategoryChart } from './CategoryChart';
 import { TimeSeriesChart } from './TimeSeriesChart';
 import { TimeRangeSelector } from './TimeRangeSelector';
+import { CategorizationStatusBanner } from './CategorizationStatusBanner';
 import { apiService } from '../../services/api';
 import type { AnalyticsData } from '../../types/analytics';
 
@@ -361,6 +362,9 @@ export const SpendingDashboard = () => {
 
   return (
     <div className="space-y-6">
+      {/* Categorization Status Banner */}
+      <CategorizationStatusBanner />
+
       {/* Header with Time Range */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

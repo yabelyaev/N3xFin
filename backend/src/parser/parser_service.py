@@ -309,6 +309,10 @@ class ParserService:
             List of transactions
         """
         import json
+        from datetime import datetime
+
+        # Get current year for date inference
+        current_year = datetime.now().year
 
         prompt = f"""Analyze this bank statement text and extract all transactions.
 
@@ -317,11 +321,12 @@ class ParserService:
 
     For each transaction, provide:
     - date: Transaction date in YYYY-MM-DD format
-      * For dates like "10/18", "11/01", or "12-25": interpret as MM/DD and use 2024 as the year
-      * For dates like "18/10/2024" or "18-10-2024": interpret as DD/MM/YYYY
-      * For dates like "2024-10-18": use as-is (YYYY-MM-DD)
-      * For dates like "Oct 18" or "18 Oct": use 2024 as the year
-      * If the statement header shows a different year (like "November 2023"), use that year instead
+      * For dates like "10/18", "11/01", or "12-25": interpret as MM/DD and use {current_year} as the year
+      * For dates like "18/10/{current_year}" or "18-10-{current_year}": interpret as DD/MM/YYYY
+      * For dates like "{current_year}-10-18": use as-is (YYYY-MM-DD)
+      * For dates like "Oct 18" or "18 Oct": use {current_year} as the year
+      * If the statement header shows a different year (like "November 2023" or "Jan2025"), use that year instead
+      * IMPORTANT: Look for the statement period or filename year first - it's the most reliable source
     - description: Transaction description/merchant name (clean, without extra symbols)
     - amount: Transaction amount as a number
       * Negative for debits/withdrawals/expenses/payments
@@ -332,7 +337,7 @@ class ParserService:
     Return ONLY a valid JSON array with this exact structure:
     [
       {{
-    "date": "2024-01-15",
+    "date": "{current_year}-01-15",
     "description": "GROCERY STORE",
     "amount": -45.67,
     "balance": 1234.56
@@ -345,7 +350,7 @@ class ParserService:
     - Use positive amounts for money coming in (deposits, refunds, salary, transfers in)
     - Clean up descriptions: remove extra spaces, special characters, transaction codes
     - For ambiguous dates, prefer MM/DD format unless context clearly indicates DD/MM
-    - If you see a statement period (e.g., "Statement Period: Nov 1 - Nov 30, 2024"), use that year
+    - If you see a statement period (e.g., "Statement Period: Nov 1 - Nov 30, 2025"), use that year
     - Skip header rows, totals, and summary lines - only extract actual transactions
     - If balance is not visible or unclear, omit the balance field entirely
     - Return empty array [] if no transactions found

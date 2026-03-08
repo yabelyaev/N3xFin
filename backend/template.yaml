@@ -479,7 +479,7 @@ Resources:
       FunctionName: n3xfin-categorize-transactions
       CodeUri: src/
       Handler: categorization.categorize_transactions.lambda_handler
-      Timeout: 60
+      Timeout: 120
       Policies:
         - Statement:
             - Effect: Allow
@@ -498,6 +498,25 @@ Resources:
           Properties:
             Path: /categorization/categorize
             Method: POST
+
+  GetCategorizationStatusFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: n3xfin-get-categorization-status
+      CodeUri: src/
+      Handler: categorization.get_categorization_status.lambda_handler
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:Query
+              Resource: !GetAtt TransactionsTable.Arn
+      Events:
+        GetCategorizationStatusApi:
+          Type: Api
+          Properties:
+            Path: /categorization/status
+            Method: GET
 
   # Analytics Lambda Functions
   GetAnalyticsFunction:
@@ -662,6 +681,7 @@ Resources:
               Action:
                 - dynamodb:Query
                 - dynamodb:PutItem
+                - dynamodb:GetItem
               Resource:
                 - !GetAtt TransactionsTable.Arn
                 - !GetAtt ReportsTable.Arn
@@ -676,6 +696,11 @@ Resources:
           Type: Api
           Properties:
             Path: /reports/generate
+            Method: GET
+        GetReportApi:
+          Type: Api
+          Properties:
+            Path: /reports/{reportId}
             Method: GET
 
   # Conversation Lambda Function

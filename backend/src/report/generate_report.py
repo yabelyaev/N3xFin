@@ -15,6 +15,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     Handle report generation and listing requests.
 
     GET  ?action=list          — list all reports + months with data
+    GET  /reports/{reportId}   — get a specific report by ID
     POST ?year=YYYY&month=M    — generate (or regenerate) a specific month's report
     GET  (default)             — generate for current month
     """
@@ -26,8 +27,31 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         http_method = event.get('httpMethod', 'GET')
         query_params = event.get('queryStringParameters') or {}
         action = query_params.get('action', '')
+        path_params = event.get('pathParameters') or {}
 
         service = ReportService()
+
+        # ── Get specific report by ID ─────────────────────────────────────
+        if path_params.get('reportId'):
+            report_id = path_params['reportId']
+            report = service.get_report_by_id(user_id, report_id)
+            if not report:
+                return {
+                    'statusCode': 404,
+                    'headers': {
+                        'Content-Type': 'application/json',
+                        'Access-Control-Allow-Origin': '*'
+                    },
+                    'body': json.dumps({'error': 'Report not found'})
+                }
+            return {
+                'statusCode': 200,
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                },
+                'body': json.dumps(report)
+            }
 
         # ── List all reports + available months ──────────────────────────
         if action == 'list':

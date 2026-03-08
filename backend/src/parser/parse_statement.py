@@ -118,23 +118,31 @@ def _run_worker(event: Dict[str, Any], request_id: str) -> Dict[str, Any]:
 
         print(f'Worker done: {stored_count} transactions stored for user {user_id}')
 
-        # Auto-trigger categorization async so categories are assigned immediately
+        # Auto-trigger categorization in batches to handle large uploads
         if stored_count > 0:
             try:
                 lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
-                lambda_client.invoke(
-                    FunctionName='n3xfin-categorize-transactions',
-                    InvocationType='Event',
-                    Payload=json.dumps({
-                        'requestContext': {
-                            'authorizer': {
-                                'claims': {'sub': user_id}
-                            }
-                        },
-                        'body': json.dumps({'limit': 500}),
-                    }).encode('utf-8'),
-                )
-                print(f'Triggered categorization for user {user_id}')
+                
+                # Trigger multiple categorization batches for large uploads
+                # Each batch processes up to 50 transactions to avoid timeouts
+                batch_size = 50
+                num_batches = (stored_count + batch_size - 1) // batch_size  # Ceiling division
+                
+                for i in range(min(num_batches, 20)):  # Max 20 batches (1000 transactions)
+                    lambda_client.invoke(
+                        FunctionName='n3xfin-categorize-transactions',
+                        InvocationType='Event',
+                        Payload=json.dumps({
+                            'requestContext': {
+                                'authorizer': {
+                                    'claims': {'sub': user_id}
+                                }
+                            },
+                            'body': json.dumps({'limit': batch_size}),
+                        }).encode('utf-8'),
+                    )
+                
+                print(f'Triggered {min(num_batches, 20)} categorization batches for {stored_count} transactions (user {user_id})')
             except Exception as cat_err:
                 print(f'Warning: could not trigger categorization: {cat_err}')
 

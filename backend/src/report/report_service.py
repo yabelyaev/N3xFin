@@ -529,3 +529,43 @@ Example: ["Your savings rate of 25% is excellent", "Dining spending increased by
         except Exception as e:
             print(f"Error listing reports: {str(e)}")
             return []
+
+    def get_report_by_id(self, user_id: str, report_id: str) -> Optional[Dict]:
+        """
+        Get a specific report by its ID.
+        Report ID format: {user_id}-{YYYY}-{MM}
+        
+        Args:
+            user_id: User identifier
+            report_id: Report identifier
+            
+        Returns:
+            Full report data or None if not found
+        """
+        try:
+            # Extract month from report_id (format: user_id-YYYY-MM)
+            parts = report_id.split('-')
+            if len(parts) < 3:
+                return None
+            
+            # Reconstruct month as YYYY-MM
+            month = f"{parts[-2]}-{parts[-1]}"
+            
+            response = self.reports_table.get_item(
+                Key={
+                    'PK': f'USER#{user_id}',
+                    'SK': f'REPORT#{month}'
+                }
+            )
+            
+            item = response.get('Item')
+            if not item:
+                return None
+            
+            # Parse and return full report data
+            report_data = json.loads(item.get('reportData', '{}'))
+            return report_data
+            
+        except Exception as e:
+            print(f"Error getting report by ID: {str(e)}")
+            return None
