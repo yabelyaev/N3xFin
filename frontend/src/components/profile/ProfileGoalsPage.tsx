@@ -256,7 +256,7 @@ export const ProfileGoalsPage = () => {
                           Target Amount
                         </label>
                         <div className="relative">
-                          <span className="absolute left-3 top-2.5 text-gray-500">{currencySymbol}</span>
+                          <span className="absolute left-3 top-2.5 text-gray-500 font-medium">{currencySymbol}</span>
                           <input
                             type="text"
                             inputMode="numeric"
@@ -266,7 +266,8 @@ export const ProfileGoalsPage = () => {
                               updateGoal(index, 'target_amount', value === '' ? 0 : parseFloat(value));
                             }}
                             placeholder="0"
-                            className="w-full pl-7 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            style={{ paddingLeft: currencySymbol.length > 1 ? '2.5rem' : '1.75rem' }}
                           />
                         </div>
                       </div>
@@ -275,7 +276,7 @@ export const ProfileGoalsPage = () => {
                           Current Amount
                         </label>
                         <div className="relative">
-                          <span className="absolute left-3 top-2.5 text-gray-500">{currencySymbol}</span>
+                          <span className="absolute left-3 top-2.5 text-gray-500 font-medium">{currencySymbol}</span>
                           <input
                             type="text"
                             inputMode="numeric"
@@ -285,7 +286,8 @@ export const ProfileGoalsPage = () => {
                               updateGoal(index, 'current_amount', value === '' ? 0 : parseFloat(value));
                             }}
                             placeholder="0"
-                            className="w-full pl-7 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            style={{ paddingLeft: currencySymbol.length > 1 ? '2.5rem' : '1.75rem' }}
                           />
                         </div>
                       </div>
