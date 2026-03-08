@@ -7,7 +7,6 @@ import type { AnalyticsData } from '../../types/analytics';
 
 export const SpendingDashboard = () => {
   const [timeRange, setTimeRange] = useState('30d');
-  const [chartType, setChartType] = useState<'pie' | 'bar'>('bar');
   const [sortBy, setSortBy] = useState<'amount' | 'name' | 'percentage'>('amount');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [loading, setLoading] = useState(true);
@@ -322,7 +321,7 @@ export const SpendingDashboard = () => {
 
       {/* Main Grid Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Chart */}
+        {/* Left Column - Time Series Chart */}
         <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -335,28 +334,6 @@ export const SpendingDashboard = () => {
                   ${totalSpending.toFixed(2)}
                 </span>
               </div>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setChartType('bar')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  chartType === 'bar'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                Bar
-              </button>
-              <button
-                onClick={() => setChartType('pie')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  chartType === 'pie'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                Pie
-              </button>
             </div>
           </div>
           <TimeSeriesChart data={timeSeriesData} />
@@ -425,10 +402,10 @@ export const SpendingDashboard = () => {
         </div>
       </div>
 
-      {/* Category Breakdown Section */}
+      {/* Bar Chart Section */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-3">
-          <h3 className="text-lg font-semibold text-gray-900">Spending by Category</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Bar Chart - Spending by Category</h3>
           <div className="flex flex-wrap gap-2">
             <select
               value={sortBy}
@@ -449,7 +426,13 @@ export const SpendingDashboard = () => {
             </button>
           </div>
         </div>
-        <CategoryChart data={sortedCategoryData} type={chartType} />
+        <CategoryChart data={sortedCategoryData} type="bar" />
+      </div>
+
+      {/* Pie Chart Section */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-6">Pie Chart - Category Distribution</h3>
+        <CategoryChart data={sortedCategoryData} type="pie" />
       </div>
     </div>
   );
