@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { TimeSeriesData } from '../../types/analytics';
 
 interface TimeSeriesChartProps {
@@ -5,6 +6,8 @@ interface TimeSeriesChartProps {
 }
 
 export const TimeSeriesChart = ({ data }: TimeSeriesChartProps) => {
+  const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
+
   if (!data || data.length === 0) {
     return (
       <div className="flex items-center justify-center h-64 text-gray-500">
@@ -29,14 +32,14 @@ export const TimeSeriesChart = ({ data }: TimeSeriesChartProps) => {
   });
 
   // Create smooth curve using cubic bezier
-  const createSmoothPath = (points: typeof points) => {
-    if (points.length < 2) return '';
+  const createSmoothPath = (pts: Array<{ x: number; y: number }>) => {
+    if (pts.length < 2) return '';
     
-    let path = `M ${points[0].x} ${points[0].y}`;
+    let path = `M ${pts[0].x} ${pts[0].y}`;
     
-    for (let i = 0; i < points.length - 1; i++) {
-      const current = points[i];
-      const next = points[i + 1];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const current = pts[i];
+      const next = pts[i + 1];
       const controlX = (current.x + next.x) / 2;
       
       path += ` Q ${controlX} ${current.y}, ${controlX} ${(current.y + next.y) / 2}`;
@@ -59,8 +62,28 @@ export const TimeSeriesChart = ({ data }: TimeSeriesChartProps) => {
     return `$${value.toFixed(0)}`;
   };
 
+  // Format full currency for tooltip
+  const formatFullCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-US', { 
+      style: 'currency', 
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(value);
+  };
+
+  // Format date for tooltip
+  const formatDate = (timestamp: string) => {
+    return new Date(timestamp).toLocaleDateString('en-US', { 
+      weekday: 'short',
+      month: 'short', 
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
   return (
-    <div className="w-full">
+    <div className="w-full relative">
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-64 sm:h-72 md:h-80 lg:h-96">
         <defs>
           {/* Gradient for area fill */}
@@ -135,20 +158,75 @@ export const TimeSeriesChart = ({ data }: TimeSeriesChartProps) => {
           const showLabel = index % Math.max(1, Math.ceil(data.length / 8)) === 0 || 
                            index === 0 || 
                            index === points.length - 1;
+          const isHovered = hoveredPoint === index;
           
           return (
             <g key={index}>
+              {/* Invisible larger circle for easier hover */}
+              <circle
+                cx={point.x}
+                cy={point.y}
+                r="12"
+                fill="transparent"
+                style={{ cursor: 'pointer' }}
+                onMouseEnter={() => setHoveredPoint(index)}
+                onMouseLeave={() => setHoveredPoint(null)}
+              />
+              
               {/* Point circle with hover effect */}
               <circle
                 cx={point.x}
                 cy={point.y}
-                r="4"
+                r={isHovered ? "6" : "4"}
                 fill="white"
                 stroke="#3b82f6"
-                strokeWidth="3"
-                className="transition-all hover:r-6"
-                style={{ cursor: 'pointer' }}
+                strokeWidth={isHovered ? "4" : "3"}
+                style={{ 
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  pointerEvents: 'none'
+                }}
               />
+              
+              {/* Tooltip on hover */}
+              {isHovered && (
+                <g>
+                  {/* Tooltip background */}
+                  <rect
+                    x={point.x - 80}
+                    y={point.y - 70}
+                    width="160"
+                    height="55"
+                    rx="8"
+                    fill="white"
+                    stroke="#e5e7eb"
+                    strokeWidth="1"
+                    filter="url(#shadow)"
+                  />
+                  {/* Tooltip date */}
+                  <text
+                    x={point.x}
+                    y={point.y - 48}
+                    textAnchor="middle"
+                    fontSize="12"
+                    fill="#6b7280"
+                    fontWeight="500"
+                  >
+                    {formatDate(point.timestamp)}
+                  </text>
+                  {/* Tooltip amount */}
+                  <text
+                    x={point.x}
+                    y={point.y - 28}
+                    textAnchor="middle"
+                    fontSize="16"
+                    fill="#111827"
+                    fontWeight="700"
+                  >
+                    {formatFullCurrency(point.amount)}
+                  </text>
+                </g>
+              )}
               
               {/* Date labels */}
               {showLabel && (
