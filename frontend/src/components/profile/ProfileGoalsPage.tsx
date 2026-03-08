@@ -187,7 +187,7 @@ export const ProfileGoalsPage = () => {
                           value={goal.name}
                           onChange={(e) => updateGoal(index, 'name', e.target.value)}
                           placeholder="e.g., College Fund, Pay off Credit Card"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
                       </div>
                       <div>
@@ -197,7 +197,8 @@ export const ProfileGoalsPage = () => {
                         <select
                           value={goal.type}
                           onChange={(e) => updateGoal(index, 'type', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
+                          style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 0.5rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em' }}
                         >
                           <option value="savings">💰 Savings</option>
                           <option value="debt_payoff">💳 Debt Payoff</option>
@@ -211,12 +212,17 @@ export const ProfileGoalsPage = () => {
                           Target Amount
                         </label>
                         <div className="relative">
-                          <span className="absolute left-3 top-2 text-gray-500">$</span>
+                          <span className="absolute left-3 top-2.5 text-gray-500">$</span>
                           <input
-                            type="number"
-                            value={goal.target_amount}
-                            onChange={(e) => updateGoal(index, 'target_amount', parseFloat(e.target.value) || 0)}
-                            className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            type="text"
+                            inputMode="numeric"
+                            value={goal.target_amount === 0 ? '' : goal.target_amount}
+                            onChange={(e) => {
+                              const value = e.target.value.replace(/[^0-9]/g, '');
+                              updateGoal(index, 'target_amount', value === '' ? 0 : parseFloat(value));
+                            }}
+                            placeholder="0"
+                            className="w-full pl-7 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           />
                         </div>
                       </div>
@@ -225,12 +231,17 @@ export const ProfileGoalsPage = () => {
                           Current Amount
                         </label>
                         <div className="relative">
-                          <span className="absolute left-3 top-2 text-gray-500">$</span>
+                          <span className="absolute left-3 top-2.5 text-gray-500">$</span>
                           <input
-                            type="number"
-                            value={goal.current_amount}
-                            onChange={(e) => updateGoal(index, 'current_amount', parseFloat(e.target.value) || 0)}
-                            className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            type="text"
+                            inputMode="numeric"
+                            value={goal.current_amount === 0 ? '' : goal.current_amount}
+                            onChange={(e) => {
+                              const value = e.target.value.replace(/[^0-9]/g, '');
+                              updateGoal(index, 'current_amount', value === '' ? 0 : parseFloat(value));
+                            }}
+                            placeholder="0"
+                            className="w-full pl-7 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           />
                         </div>
                       </div>
@@ -242,7 +253,7 @@ export const ProfileGoalsPage = () => {
                           type="date"
                           value={goal.deadline}
                           onChange={(e) => updateGoal(index, 'deadline', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
                       </div>
                       <div>
@@ -252,7 +263,8 @@ export const ProfileGoalsPage = () => {
                         <select
                           value={goal.priority}
                           onChange={(e) => updateGoal(index, 'priority', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
+                          style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 0.5rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em' }}
                         >
                           <option value="low">🟢 Low</option>
                           <option value="medium">🟡 Medium</option>
