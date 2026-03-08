@@ -308,6 +308,57 @@ export const SpendingDashboard = () => {
 
   const trendPercentage = calculateTrendPercentage();
 
+  // Map category names to appropriate icons
+  const getCategoryIcon = (category: string) => {
+    const categoryLower = category.toLowerCase();
+    
+    // Food & Dining
+    if (categoryLower.includes('food') || categoryLower.includes('dining') || 
+        categoryLower.includes('restaurant') || categoryLower.includes('groceries')) {
+      return '🍔';
+    }
+    // Shopping & Retail
+    if (categoryLower.includes('shopping') || categoryLower.includes('retail') || 
+        categoryLower.includes('clothing') || categoryLower.includes('amazon')) {
+      return '🛒';
+    }
+    // Transportation
+    if (categoryLower.includes('transport') || categoryLower.includes('gas') || 
+        categoryLower.includes('fuel') || categoryLower.includes('car') || 
+        categoryLower.includes('uber') || categoryLower.includes('lyft')) {
+      return '🚗';
+    }
+    // Housing & Utilities
+    if (categoryLower.includes('housing') || categoryLower.includes('rent') || 
+        categoryLower.includes('mortgage') || categoryLower.includes('utilities') || 
+        categoryLower.includes('electric') || categoryLower.includes('water')) {
+      return '🏠';
+    }
+    // Entertainment
+    if (categoryLower.includes('entertainment') || categoryLower.includes('movie') || 
+        categoryLower.includes('music') || categoryLower.includes('streaming') || 
+        categoryLower.includes('netflix') || categoryLower.includes('spotify')) {
+      return '🎬';
+    }
+    // Healthcare
+    if (categoryLower.includes('health') || categoryLower.includes('medical') || 
+        categoryLower.includes('pharmacy') || categoryLower.includes('doctor')) {
+      return '🏥';
+    }
+    // Travel
+    if (categoryLower.includes('travel') || categoryLower.includes('hotel') || 
+        categoryLower.includes('flight') || categoryLower.includes('vacation')) {
+      return '✈️';
+    }
+    // Bills & Subscriptions
+    if (categoryLower.includes('bill') || categoryLower.includes('subscription') || 
+        categoryLower.includes('insurance')) {
+      return '📄';
+    }
+    // Default
+    return '💳';
+  };
+
   return (
     <div className="space-y-6">
       {/* Header with Time Range */}
@@ -368,14 +419,13 @@ export const SpendingDashboard = () => {
 
           {/* Category Breakdown Cards */}
           {sortedCategoryData.slice(0, 3).map((cat, idx) => {
-            const icons = ['🛒', '🏠', '🚗', '🍔', '💳'];
             const colors = ['bg-cyan-50 text-cyan-600', 'bg-purple-50 text-purple-600', 'bg-yellow-50 text-yellow-600'];
             
             return (
               <div key={cat.category} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                 <div className="flex items-start justify-between mb-4">
                   <div className={`w-12 h-12 ${colors[idx % colors.length].split(' ')[0]} rounded-xl flex items-center justify-center text-2xl`}>
-                    {icons[idx % icons.length]}
+                    {getCategoryIcon(cat.category)}
                   </div>
                   <button className="text-gray-400 hover:text-gray-600">
                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -402,37 +452,40 @@ export const SpendingDashboard = () => {
         </div>
       </div>
 
-      {/* Bar Chart Section */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-3">
-          <h3 className="text-lg font-semibold text-gray-900">Bar Chart - Spending by Category</h3>
-          <div className="flex flex-wrap gap-2">
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as 'amount' | 'name' | 'percentage')}
-              className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white hover:border-gray-300 transition-colors"
-            >
-              <option value="amount">Sort by Amount</option>
-              <option value="percentage">Sort by Percentage</option>
-              <option value="name">Sort by Name</option>
-            </select>
-            <button
-              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-              className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white hover:border-gray-300 transition-colors flex items-center gap-1"
-              title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-            >
-              {sortOrder === 'desc' ? '↓' : '↑'}
-              {sortOrder === 'desc' ? 'Desc' : 'Asc'}
-            </button>
+      {/* Bar and Pie Charts Side by Side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Bar Chart Section */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-3">
+            <h3 className="text-lg font-semibold text-gray-900">Bar Chart</h3>
+            <div className="flex flex-wrap gap-2">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as 'amount' | 'name' | 'percentage')}
+                className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white hover:border-gray-300 transition-colors"
+              >
+                <option value="amount">Sort by Amount</option>
+                <option value="percentage">Sort by Percentage</option>
+                <option value="name">Sort by Name</option>
+              </select>
+              <button
+                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white hover:border-gray-300 transition-colors flex items-center gap-1"
+                title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+              >
+                {sortOrder === 'desc' ? '↓' : '↑'}
+                {sortOrder === 'desc' ? 'Desc' : 'Asc'}
+              </button>
+            </div>
           </div>
+          <CategoryChart data={sortedCategoryData} type="bar" />
         </div>
-        <CategoryChart data={sortedCategoryData} type="bar" />
-      </div>
 
-      {/* Pie Chart Section */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-6">Pie Chart - Category Distribution</h3>
-        <CategoryChart data={sortedCategoryData} type="pie" />
+        {/* Pie Chart Section */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-6">Pie Chart</h3>
+          <CategoryChart data={sortedCategoryData} type="pie" />
+        </div>
       </div>
     </div>
   );
