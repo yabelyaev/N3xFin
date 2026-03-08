@@ -69,10 +69,15 @@ class ConversationService:
             question: User's question
             
         Returns:
-            Financial context including transactions, summaries, and profile
+            Financial context including transactions, summaries, profile, and goals
         """
         # Get user profile for personalized context
         profile_summary = ProfileService.get_profile_summary(user_id)
+        
+        # Get full profile to access goals
+        profile = ProfileService.get_profile(user_id)
+        goals = profile.get('goals', []) if profile else []
+        active_goals = [g for g in goals if g.get('status') == 'active']
         
         # Determine time range based on question keywords
         time_range = self._detect_time_range(question)
@@ -92,6 +97,8 @@ class ConversationService:
         
         return {
             'profile': profile_summary,
+            'goals': active_goals,
+            'goalCount': len(active_goals),
             'timeRange': {
                 'start': time_range['start'].isoformat(),
                 'end': time_range['end'].isoformat(),
@@ -250,10 +257,19 @@ Your role:
 - Be empathetic and non-judgmental about spending habits
 - Provide practical tips that are realistic and achievable given their financial situation
 - When suggesting savings, be specific about amounts, categories, and how it helps their goals
-- If they have goals, always relate advice back to goal progress (e.g., "Cutting dining by $200/month gets you to your college fund goal 8 months faster")
+- Always relate advice back to goal progress (e.g., "Cutting dining by $200/month gets you to your college fund goal 8 months faster")
 - If asked about investments or complex financial products, acknowledge you're focused on spending analysis and budgeting
 - Always base your advice on the actual data provided - don't make assumptions
 - If data is insufficient, clearly explain what additional information would help
+
+CRITICAL - Handling Goal Questions:
+- When user asks about "my goal" or "how to achieve my goal":
+  * If they have EXACTLY ONE active goal: Answer directly about that specific goal
+  * If they have MULTIPLE goals: List them as a), b), c), etc. and ask which one they want to discuss
+  * If they have NO goals: Politely explain they haven't set up any financial goals yet and suggest they add goals in their profile
+- Always check the "Active Financial Goals" section in the context
+- Use the goal labels (a, b, c) provided in the context when listing multiple goals
+- Be specific about goal progress, target amounts, and deadlines
 
 Guidelines:
 - Keep responses concise (2-3 paragraphs max)
@@ -295,6 +311,32 @@ Guidelines:
     def _build_context_summary(self, context: Dict) -> str:
         """Build a text summary of financial context."""
         summary_parts = []
+        
+        # User profile
+        if context.get('profile'):
+            summary_parts.append("User Profile:")
+            summary_parts.append(context['profile'])
+            summary_parts.append("")
+        
+        # Financial Goals - IMPORTANT for context
+        goals = context.get('goals', [])
+        if goals:
+            summary_parts.append(f"Active Financial Goals ({len(goals)}):")
+            for idx, goal in enumerate(goals, 1):
+                goal_name = goal.get('name', 'Unnamed goal')
+                goal_type = goal.get('type', 'Unknown')
+                target = goal.get('target_amount', 0)
+                current = goal.get('current_amount', 0)
+                deadline = goal.get('deadline', 'No deadline')
+                priority = goal.get('priority', 'medium')
+                progress = (current / target * 100) if target > 0 else 0
+                
+                summary_parts.append(
+                    f"  {chr(96 + idx)}) {goal_name} ({goal_type}): "
+                    f"${current:,.2f} / ${target:,.2f} ({progress:.1f}% complete) "
+                    f"[Priority: {priority}, Deadline: {deadline}]"
+                )
+            summary_parts.append("")
         
         # Time range
         summary_parts.append(f"Time Period: {context['timeRange']['description']}")
