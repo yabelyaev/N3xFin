@@ -484,6 +484,11 @@ Resources:
           Properties:
             Path: /reports/generate
             Method: POST
+        ListReportsApi:
+          Type: Api
+          Properties:
+            Path: /reports/generate
+            Method: GET
 
   # Conversation Lambda Function
   AskQuestionFunction:

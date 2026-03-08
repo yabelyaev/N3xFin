@@ -299,54 +299,141 @@ export const SpendingDashboard = () => {
     return sortOrder === 'asc' ? -comparison : comparison;
   });
 
+  // Calculate trend percentage for total spending
+  const calculateTrendPercentage = () => {
+    const allTrends = Object.values(trends);
+    if (allTrends.length === 0) return null;
+    const avgChange = allTrends.reduce((sum, t) => sum + t.percentageChange, 0) / allTrends.length;
+    return avgChange;
+  };
+
+  const trendPercentage = calculateTrendPercentage();
+
   return (
-    <div className="space-y-4 md:space-y-6">
-      {/* Time Range Selector */}
-      <div className="bg-white rounded-lg shadow p-4 md:p-6">
-        <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-4">Time Range</h3>
+    <div className="space-y-6">
+      {/* Header with Time Range */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Account Balance</h2>
+          <p className="text-sm text-gray-500 mt-1">Here's an overview of all of your balances.</p>
+        </div>
         <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
       </div>
 
-      {/* Spending Totals */}
-      <div className="bg-white rounded-lg shadow p-4 md:p-6">
-        <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-4">Total Spending</h3>
-        <div className="text-2xl md:text-3xl font-bold text-gray-900">
-          ${totalSpending.toFixed(2)}
-        </div>
-        {Object.keys(trends).length > 0 && (
-          <div className="mt-4 space-y-2">
-            {Object.entries(trends).map(([category, trend]) => (
-              <div key={category} className="flex items-center justify-between text-xs md:text-sm">
-                <span className="text-gray-600">{category}</span>
-                <span
-                  className={`font-medium ${trend.direction === 'increasing'
-                    ? 'text-red-600'
-                    : trend.direction === 'decreasing'
-                      ? 'text-green-600'
-                      : 'text-gray-600'
-                    }`}
-                >
-                  {trend.direction === 'increasing' && '↑'}
-                  {trend.direction === 'decreasing' && '↓'}
-                  {trend.direction === 'stable' && '→'}
-                  {' '}
-                  {Math.abs(trend.percentageChange).toFixed(1)}%
+      {/* Main Grid Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column - Chart */}
+        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Spending Over Time</h3>
+              <div className="flex items-baseline gap-3 mt-2">
+                <span className="text-sm text-gray-500">
+                  {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </span>
+                <span className="text-2xl font-bold text-gray-900">
+                  ${totalSpending.toFixed(2)}
                 </span>
               </div>
-            ))}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setChartType('bar')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  chartType === 'bar'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Bar
+              </button>
+              <button
+                onClick={() => setChartType('pie')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  chartType === 'pie'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Pie
+              </button>
+            </div>
           </div>
-        )}
+          <TimeSeriesChart data={timeSeriesData} />
+        </div>
+
+        {/* Right Column - Summary Cards */}
+        <div className="space-y-4">
+          {/* Total Balance Card */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="flex items-start justify-between mb-4">
+              <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
+                <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                </svg>
+              </div>
+              <button className="text-gray-400 hover:text-gray-600">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                </svg>
+              </button>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 mb-1">Total Spending</p>
+              <p className="text-3xl font-bold text-gray-900">${totalSpending.toFixed(2)}</p>
+              {trendPercentage !== null && (
+                <p className={`text-sm mt-2 ${trendPercentage > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                  {trendPercentage > 0 ? '+' : ''}{trendPercentage.toFixed(1)}%
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Category Breakdown Cards */}
+          {sortedCategoryData.slice(0, 3).map((cat, idx) => {
+            const icons = ['🛒', '🏠', '🚗', '🍔', '💳'];
+            const colors = ['bg-cyan-50 text-cyan-600', 'bg-purple-50 text-purple-600', 'bg-yellow-50 text-yellow-600'];
+            
+            return (
+              <div key={cat.category} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className={`w-12 h-12 ${colors[idx % colors.length].split(' ')[0]} rounded-xl flex items-center justify-center text-2xl`}>
+                    {icons[idx % icons.length]}
+                  </div>
+                  <button className="text-gray-400 hover:text-gray-600">
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                    </svg>
+                  </button>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">{cat.category}</p>
+                  <p className="text-2xl font-bold text-gray-900">${cat.totalAmount.toFixed(2)}</p>
+                  <p className={`text-sm mt-2 ${
+                    trends[cat.category]?.direction === 'increasing' ? 'text-red-600' :
+                    trends[cat.category]?.direction === 'decreasing' ? 'text-green-600' :
+                    'text-gray-500'
+                  }`}>
+                    {trends[cat.category]?.direction === 'increasing' && '+'}
+                    {trends[cat.category]?.direction === 'decreasing' && '-'}
+                    {trends[cat.category] ? Math.abs(trends[cat.category].percentageChange).toFixed(1) : '0.0'}%
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Category Spending Chart */}
-      <div className="bg-white rounded-lg shadow p-4 md:p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
-          <h3 className="text-base md:text-lg font-semibold text-gray-900">Spending by Category</h3>
+      {/* Category Breakdown Section */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-3">
+          <h3 className="text-lg font-semibold text-gray-900">Spending by Category</h3>
           <div className="flex flex-wrap gap-2">
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as 'amount' | 'name' | 'percentage')}
-              className="px-3 py-1 border border-gray-300 rounded text-sm bg-white"
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white hover:border-gray-300 transition-colors"
             >
               <option value="amount">Sort by Amount</option>
               <option value="percentage">Sort by Percentage</option>
@@ -354,41 +441,15 @@ export const SpendingDashboard = () => {
             </select>
             <button
               onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-              className="px-3 py-1 border border-gray-300 rounded text-sm bg-white hover:bg-gray-50 flex items-center gap-1"
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white hover:border-gray-300 transition-colors flex items-center gap-1"
               title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
             >
               {sortOrder === 'desc' ? '↓' : '↑'}
               {sortOrder === 'desc' ? 'Desc' : 'Asc'}
             </button>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setChartType('bar')}
-                className={`px-3 py-1 rounded text-sm ${chartType === 'bar'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-200 text-gray-700'
-                  }`}
-              >
-                Bar
-              </button>
-              <button
-                onClick={() => setChartType('pie')}
-                className={`px-3 py-1 rounded text-sm ${chartType === 'pie'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-200 text-gray-700'
-                  }`}
-              >
-                Pie
-              </button>
-            </div>
           </div>
         </div>
         <CategoryChart data={sortedCategoryData} type={chartType} />
-      </div>
-
-      {/* Time Series Chart */}
-      <div className="bg-white rounded-lg shadow p-4 md:p-6">
-        <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-4">Spending Over Time</h3>
-        <TimeSeriesChart data={timeSeriesData} />
       </div>
     </div>
   );
