@@ -48,7 +48,8 @@ N3xFin is built entirely on AWS Free Tier services, demonstrating that powerful 
 - Amazon Cognito for secure user authentication
 - Amazon DynamoDB for NoSQL data storage
 - Amazon S3 for secure file storage
-- Amazon Bedrock (Claude Sonnet 4.5) for AI-powered features
+- Amazon Bedrock (Claude 3.5 Haiku) for AI-powered features
+- Amazon Bedrock (Claude 3 Sonnet) for PDF parsing
 
 ### Development Journey with Kiro
 
@@ -222,7 +223,7 @@ I built a production-ready application entirely within AWS Free Tier limits:
 - Lambda: 1M requests/month
 - DynamoDB: 25GB storage, 25 read/write units
 - S3: 5GB storage, 20K GET requests
-- Bedrock: Generous free tier for Claude Sonnet
+- Bedrock: Pay per token (Claude 3.5 Haiku + Claude 3 Sonnet)
 
 This proves that cost shouldn't be a barrier to building AI applications.
 

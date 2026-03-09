@@ -31,7 +31,7 @@ graph TB
     end
 
     subgraph "AI Layer"
-        BEDROCK[Amazon Bedrock<br/>Claude Sonnet 4.5]
+        BEDROCK[Amazon Bedrock<br/>Claude 3.5 Haiku<br/>Claude 3 Sonnet]
     end
 
     subgraph "Storage Layer"
@@ -262,7 +262,7 @@ Access Patterns:
 | **Amazon Cognito** | User authentication | 50,000 MAUs |
 | **Amazon DynamoDB** | NoSQL database | 25 GB storage, 25 RCU/WCU |
 | **Amazon S3** | File storage | 5 GB storage, 20K GET, 2K PUT |
-| **Amazon Bedrock** | AI/ML (Claude Sonnet 4.5) | Pay per token (~$0.003/1K input) |
+| **Amazon Bedrock** | AI/ML (Claude 3.5 Haiku + Claude 3 Sonnet) | Pay per token (~$0.001/1K input for Haiku) |
 
 ## Security Architecture
 

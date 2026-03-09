@@ -45,7 +45,7 @@ N3xFin is an AI-powered financial intelligence platform that transforms raw bank
 | Amazon Cognito | User authentication | ✅ 50K MAUs |
 | Amazon DynamoDB | NoSQL database | ✅ 25 GB storage |
 | Amazon S3 | File storage | ✅ 5 GB storage |
-| Amazon Bedrock | AI/ML (Claude Sonnet 4.5) | 💰 Pay per token |
+| Amazon Bedrock | AI/ML (Claude 3.5 Haiku) | 💰 Pay per token |
 
 **Total Cost**: ~$5-15/month for demo usage (Bedrock only)
 
@@ -314,7 +314,7 @@ MIT License - See [LICENSE](./LICENSE) file for details
 ## 🙏 Acknowledgments
 
 - Built with [Kiro](https://kiro.ai) - AI-powered IDE
-- Powered by [Amazon Bedrock](https://aws.amazon.com/bedrock/) - Claude Sonnet 4.5
+- Powered by [Amazon Bedrock](https://aws.amazon.com/bedrock/) - Claude 3.5 Haiku & Claude 3 Sonnet
 - Hosted on [AWS Free Tier](https://aws.amazon.com/free/)
 - Inspired by the need to democratize financial intelligence
 
