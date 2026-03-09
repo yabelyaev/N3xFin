@@ -109,6 +109,19 @@ export const MonthlyReportsList: React.FC<MonthlyReportsListProps> = ({ onSelect
     }
   };
 
+  const deleteReport = async (reportId: string, month: string) => {
+    if (!confirm(`Delete report for ${formatMonth(month)}? This cannot be undone.`)) {
+      return;
+    }
+    
+    try {
+      await apiService.deleteReport(reportId);
+      setReports(prev => prev.filter(r => r.reportId !== reportId));
+    } catch (err: any) {
+      setError(err.response?.data?.error?.message || 'Failed to delete report');
+    }
+  };
+
 
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -195,6 +208,13 @@ export const MonthlyReportsList: React.FC<MonthlyReportsListProps> = ({ onSelect
                     title="Refresh this report"
                   >
                     ↻
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); deleteReport(report.reportId, report.month); }}
+                    className="text-xs text-gray-400 hover:text-red-600 transition-colors"
+                    title="Delete this report"
+                  >
+                    🗑️
                   </button>
                 </div>
               </div>
