@@ -153,16 +153,20 @@ export const AnomalyAlerts = () => {
                 </span>
               </div>
 
-              <h4 className="font-semibold text-gray-900 mb-1">
+              <div className="flex items-baseline gap-2 mb-2">
+                <span className="text-2xl font-bold text-gray-900">
+                  ${Math.abs(safeAmount(anomaly.transaction?.amount)).toFixed(2)}
+                </span>
+                <span className="text-sm text-gray-600">
+                  • {anomaly.transaction?.category}
+                </span>
+              </div>
+
+              <h4 className="font-medium text-gray-800 mb-2">
                 {anomaly.transaction?.description}
               </h4>
 
               <div className="text-sm space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">Amount:</span>
-                  <span className="text-lg font-bold">${safeAmount(anomaly.transaction?.amount).toFixed(2)}</span>
-                  <span className="text-gray-600">({anomaly.transaction?.category})</span>
-                </div>
 
                 <div className="flex items-center gap-2">
                   <span className="font-medium">Expected range:</span>
