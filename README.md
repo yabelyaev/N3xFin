@@ -63,7 +63,7 @@ N3xFin is an AI-powered financial intelligence platform that transforms raw bank
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/yourusername/N3xFin.git
+git clone https://github.com/yabelyaev/N3xFin.git
 cd N3xFin
 ```
 
