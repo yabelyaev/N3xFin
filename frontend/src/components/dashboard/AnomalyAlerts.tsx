@@ -171,7 +171,7 @@ export const AnomalyAlerts = () => {
                 <div className="flex items-center gap-2">
                   <span className="font-medium">Expected range:</span>
                   <span>
-                    ${anomaly.expectedRange.min.toFixed(2)} - ${anomaly.expectedRange.max.toFixed(2)}
+                    ${Math.abs(anomaly.expectedRange.min).toFixed(2)} - ${Math.abs(anomaly.expectedRange.max).toFixed(2)}
                   </span>
                 </div>
 
