@@ -81,6 +81,13 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         # Route to appropriate method
         if analytics_type == 'category':
             data = service.get_spending_by_category(user_id, start_date, end_date)
+            
+            # Calculate trends for all categories efficiently
+            try:
+                trends = service.calculate_all_category_trends(user_id)
+            except Exception as e:
+                print(f"Failed to calculate trends: {e}")
+                trends = {}
         
         elif analytics_type == 'timeseries':
             granularity = params.get('granularity', 'day')
@@ -116,6 +123,10 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         }
         if total_spending is not None:
             response_body['totalSpending'] = total_spending
+        
+        # Add trends for category analytics
+        if analytics_type == 'category':
+            response_body['trends'] = trends
 
         return {
             'statusCode': 200,

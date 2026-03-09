@@ -492,6 +492,10 @@ Resources:
               Action:
                 - bedrock:InvokeModel
               Resource: '*'
+            - Effect: Allow
+              Action:
+                - lambda:InvokeFunction
+              Resource: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:n3xfin-categorize-transactions'
       Events:
         CategorizeTransactionsApi:
           Type: Api

@@ -248,6 +248,73 @@ class AnalyticsService:
             'category': category or 'all'
         }
     
+    def calculate_all_category_trends(self, user_id: str) -> Dict[str, Dict]:
+        """
+        Calculate trends for all categories efficiently in one pass.
+        
+        Args:
+            user_id: User identifier
+            
+        Returns:
+            Dictionary mapping category names to trend data
+        """
+        # Compare last 30 days to previous 30 days
+        end_date = datetime.now(UTC)
+        current_start = end_date - timedelta(days=30)
+        previous_start = current_start - timedelta(days=30)
+        
+        # Get transactions for both periods (single query each)
+        current_txns = self._get_transactions_in_range(user_id, current_start, end_date)
+        previous_txns = self._get_transactions_in_range(user_id, previous_start, current_start)
+        
+        # Group by category for both periods
+        current_by_category = defaultdict(lambda: Decimal('0'))
+        previous_by_category = defaultdict(lambda: Decimal('0'))
+        
+        for txn in current_txns:
+            amount = Decimal(str(txn.get('amount', 0)))
+            if amount < 0:
+                category = txn.get('category', 'Other')
+                current_by_category[category] += abs(amount)
+        
+        for txn in previous_txns:
+            amount = Decimal(str(txn.get('amount', 0)))
+            if amount < 0:
+                category = txn.get('category', 'Other')
+                previous_by_category[category] += abs(amount)
+        
+        # Calculate trends for all categories
+        all_categories = set(current_by_category.keys()) | set(previous_by_category.keys())
+        trends = {}
+        
+        for category in all_categories:
+            current_total = current_by_category[category]
+            previous_total = previous_by_category[category]
+            
+            if previous_total == 0:
+                if current_total == 0:
+                    direction = 'stable'
+                    percentage_change = 0.0
+                else:
+                    direction = 'increasing'
+                    percentage_change = 100.0
+            else:
+                percentage_change = ((current_total - previous_total) / previous_total) * 100
+                
+                if abs(percentage_change) < 5:
+                    direction = 'stable'
+                elif percentage_change > 0:
+                    direction = 'increasing'
+                else:
+                    direction = 'decreasing'
+            
+            trends[category] = {
+                'direction': direction,
+                'percentageChange': round(float(percentage_change), 2)
+            }
+        
+        return trends
+    
     def store_anomaly_feedback(
         self,
         user_id: str,

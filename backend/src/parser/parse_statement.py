@@ -123,12 +123,12 @@ def _run_worker(event: Dict[str, Any], request_id: str) -> Dict[str, Any]:
             try:
                 lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
                 
-                # Trigger multiple categorization batches for large uploads
-                # Each batch processes up to 50 transactions to avoid timeouts
+                # Trigger enough batches to cover all stored transactions
+                # Each batch processes up to 50 transactions
                 batch_size = 50
-                num_batches = (stored_count + batch_size - 1) // batch_size  # Ceiling division
+                num_batches = min((stored_count + batch_size - 1) // batch_size, 30)  # Max 30 batches
                 
-                for i in range(min(num_batches, 20)):  # Max 20 batches (1000 transactions)
+                for i in range(num_batches):
                     lambda_client.invoke(
                         FunctionName='n3xfin-categorize-transactions',
                         InvocationType='Event',
@@ -142,7 +142,7 @@ def _run_worker(event: Dict[str, Any], request_id: str) -> Dict[str, Any]:
                         }).encode('utf-8'),
                     )
                 
-                print(f'Triggered {min(num_batches, 20)} categorization batches for {stored_count} transactions (user {user_id})')
+                print(f'Triggered {num_batches} categorization batches for {stored_count} transactions (user {user_id})')
             except Exception as cat_err:
                 print(f'Warning: could not trigger categorization: {cat_err}')
 

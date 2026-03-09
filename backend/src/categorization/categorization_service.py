@@ -286,16 +286,34 @@ Important: Respond ONLY with the JSON array, no other text."""
             # Get uncategorized transactions - newest first
             from boto3.dynamodb.conditions import Key as DKey, Attr as DAttr
             
-            # Use ScanIndexForward=False to get newest transactions first
-            # We fetch more items (up to 1000) to find enough uncategorized ones
-            response = self.transactions_table.query(
-                KeyConditionExpression=DKey('PK').eq(f'USER#{user_id}') & DKey('SK').begins_with('TRANSACTION#'),
-                FilterExpression=DAttr('category').not_exists() | DAttr('category').eq('Uncategorized'),
-                ScanIndexForward=False,
-                Limit=min(limit, 1000)
-            )
+            # Keep querying until we have enough uncategorized transactions
+            items = []
+            last_evaluated_key = None
+            max_iterations = 20  # Prevent infinite loops
+            iterations = 0
             
-            items = response.get('Items', [])
+            while len(items) < limit and iterations < max_iterations:
+                query_params = {
+                    'KeyConditionExpression': DKey('PK').eq(f'USER#{user_id}') & DKey('SK').begins_with('TRANSACTION#'),
+                    'FilterExpression': DAttr('category').not_exists() | DAttr('category').eq('Uncategorized'),
+                    'ScanIndexForward': False,
+                    'Limit': min(limit * 3, 300)  # Fetch more to account for filtering
+                }
+                
+                if last_evaluated_key:
+                    query_params['ExclusiveStartKey'] = last_evaluated_key
+                
+                response = self.transactions_table.query(**query_params)
+                items.extend(response.get('Items', []))
+                
+                last_evaluated_key = response.get('LastEvaluatedKey')
+                if not last_evaluated_key:
+                    break  # No more items
+                    
+                iterations += 1
+            
+            # Limit to requested amount
+            items = items[:limit]
             
             if not items:
                 return {
@@ -336,10 +354,21 @@ Important: Respond ONLY with the JSON array, no other text."""
                 if result['category'] != 'Other':
                     categorized_count += 1
             
+            # Check if there are more uncategorized transactions
+            remaining_response = self.transactions_table.query(
+                KeyConditionExpression=DKey('PK').eq(f'USER#{user_id}') & DKey('SK').begins_with('TRANSACTION#'),
+                FilterExpression=DAttr('category').not_exists() | DAttr('category').eq('Uncategorized'),
+                Select='COUNT',
+                Limit=1
+            )
+            remaining_uncategorized = remaining_response.get('Count', 0)
+            
             return {
                 'totalProcessed': len(transactions),
+                'categorizedCount': categorized_count,
                 'categorized': categorized_count,
                 'uncategorized': len(transactions) - categorized_count,
+                'remainingUncategorized': remaining_uncategorized,
                 'message': f'Successfully categorized {categorized_count} out of {len(transactions)} transactions'
             }
             

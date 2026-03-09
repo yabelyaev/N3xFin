@@ -52,9 +52,26 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         categorization_service = CategorizationService()
         
         if transaction_ids:
-            result = categorization_service.categorize_transactions_by_id(user_id, transaction_ids)
+            result = categorization_service.categorize_user_transactions(user_id, transaction_ids)
         else:
             result = categorization_service.categorize_user_transactions(user_id, limit)
+        
+        # If there are still uncategorized transactions, trigger another batch
+        if result.get('categorizedCount', 0) > 0 and result.get('remainingUncategorized', 0) > 0:
+            try:
+                import boto3
+                lambda_client = boto3.client('lambda')
+                lambda_client.invoke(
+                    FunctionName='n3xfin-categorize-transactions',
+                    InvocationType='Event',
+                    Payload=json.dumps({
+                        'requestContext': {'authorizer': {'claims': {'sub': user_id}}},
+                        'body': json.dumps({'limit': limit})
+                    }).encode('utf-8')
+                )
+                print(f'Auto-triggered next categorization batch ({result.get("remainingUncategorized")} remaining)')
+            except Exception as e:
+                print(f'Could not auto-trigger next batch: {e}')
         
         return {
             'statusCode': 200,

@@ -397,10 +397,10 @@ export const SpendingDashboard = () => {
         {/* Right Column - Summary Cards */}
         <div className="space-y-4">
           {/* Total Balance Card */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
-                <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+                <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                 </svg>
               </div>
@@ -410,11 +410,11 @@ export const SpendingDashboard = () => {
                 </svg>
               </button>
             </div>
-            <div>
-              <p className="text-sm text-gray-500 mb-1">Total Spending</p>
-              <p className="text-3xl font-bold text-gray-900">${totalSpending.toFixed(2)}</p>
+            <p className="text-sm text-gray-500 mb-2">Total Spending</p>
+            <div className="flex items-baseline justify-between">
+              <p className="text-2xl font-bold text-gray-900">${totalSpending.toFixed(2)}</p>
               {trendPercentage !== null && (
-                <p className={`text-sm mt-2 ${trendPercentage > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                <p className={`text-sm font-medium ${trendPercentage > 0 ? 'text-red-600' : trendPercentage < 0 ? 'text-green-600' : 'text-gray-500'}`}>
                   {trendPercentage > 0 ? '+' : ''}{trendPercentage.toFixed(1)}%
                 </p>
               )}
@@ -424,11 +424,15 @@ export const SpendingDashboard = () => {
           {/* Category Breakdown Cards */}
           {sortedCategoryData.slice(0, 3).map((cat, idx) => {
             const colors = ['bg-cyan-50 text-cyan-600', 'bg-purple-50 text-purple-600', 'bg-yellow-50 text-yellow-600'];
+            const trend = trends[cat.category];
+            const trendValue = trend ? Math.abs(trend.percentageChange).toFixed(1) : '0.0';
+            const isIncreasing = trend?.direction === 'increasing';
+            const isDecreasing = trend?.direction === 'decreasing';
             
             return (
-              <div key={cat.category} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className={`w-12 h-12 ${colors[idx % colors.length].split(' ')[0]} rounded-xl flex items-center justify-center text-2xl`}>
+              <div key={cat.category} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className={`w-10 h-10 ${colors[idx % colors.length].split(' ')[0]} rounded-xl flex items-center justify-center text-xl`}>
                     {getCategoryIcon(cat.category)}
                   </div>
                   <button className="text-gray-400 hover:text-gray-600">
@@ -437,17 +441,17 @@ export const SpendingDashboard = () => {
                     </svg>
                   </button>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">{cat.category}</p>
+                <p className="text-sm text-gray-500 mb-2">{cat.category}</p>
+                <div className="flex items-baseline justify-between">
                   <p className="text-2xl font-bold text-gray-900">${cat.totalAmount.toFixed(2)}</p>
-                  <p className={`text-sm mt-2 ${
-                    trends[cat.category]?.direction === 'increasing' ? 'text-red-600' :
-                    trends[cat.category]?.direction === 'decreasing' ? 'text-green-600' :
+                  <p className={`text-sm font-medium ${
+                    isIncreasing ? 'text-red-600' :
+                    isDecreasing ? 'text-green-600' :
                     'text-gray-500'
                   }`}>
-                    {trends[cat.category]?.direction === 'increasing' && '+'}
-                    {trends[cat.category]?.direction === 'decreasing' && '-'}
-                    {trends[cat.category] ? Math.abs(trends[cat.category].percentageChange).toFixed(1) : '0.0'}%
+                    {isIncreasing && '+'}
+                    {isDecreasing && '-'}
+                    {trendValue}%
                   </p>
                 </div>
               </div>
