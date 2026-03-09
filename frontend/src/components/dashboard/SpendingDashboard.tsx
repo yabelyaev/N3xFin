@@ -379,14 +379,14 @@ export const SpendingDashboard = () => {
         {/* Left Column - Time Series Chart */}
         <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           <div className="flex items-start justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900">Spending Over Time</h3>
-            <div className="text-right">
-              <div className="text-sm text-gray-500">
-                Today: {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-              </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Spending Over Time</h3>
               <div className="text-2xl font-bold text-gray-900 mt-1">
                 ${totalSpending.toFixed(2)}
               </div>
+            </div>
+            <div className="text-sm text-gray-500">
+              Today: {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             </div>
           </div>
           <TimeSeriesChart data={timeSeriesData} />
