@@ -90,7 +90,21 @@ I used Kiro extensively throughout development, which accelerated my progress si
 Using Lambda functions kept costs within Free Tier while providing automatic scaling. Each function has a single responsibility (upload, parse, categorize, analyze) making the system maintainable.
 
 **2. Efficient AI Usage**
-To stay within Bedrock's Free Tier, I implemented:
+To stay within budget while maintaining quality, I implemented a smart model selection strategy:
+- **Claude 3.5 Haiku** for transaction categorization - fast, cost-effective, and perfectly suited for structured classification tasks
+- **Claude 3 Sonnet** for complex PDF parsing - better at understanding document layouts
+- **Centralized configuration** - switching to more powerful models (Sonnet 3.5 or Opus 4) for insights and conversation is a single environment variable change
+
+This demonstrates architectural maturity: using the right tool for each job rather than throwing the most expensive model at every problem. For production, upgrading specific features to more powerful models takes minutes:
+
+```python
+# config.py - One place to control all AI models
+BEDROCK_MODEL_CATEGORIZATION = 'claude-3-5-haiku'    # Fast & cheap
+BEDROCK_MODEL_INSIGHTS = 'claude-3-5-sonnet'         # Better reasoning
+BEDROCK_MODEL_CONVERSATION = 'claude-opus-4'         # Premium quality
+```
+
+Additional optimizations:
 - Batch processing (up to 50 transactions per API call)
 - Intelligent caching of categorization results
 - Automatic chaining for large uploads (self-invoking Lambda)
@@ -248,14 +262,29 @@ This competition pushed me to:
 **AI is a Tool, Not Magic**
 Success with AI requires:
 - Understanding the problem deeply
-- Choosing the right model for the task
+- Choosing the right model for the task (Haiku for speed, Sonnet for complexity, Opus for quality)
 - Engineering effective prompts
 - Handling edge cases gracefully
 - Validating outputs programmatically
 
+**Cost-Conscious Architecture**
+Building within Free Tier constraints taught me:
+- Use the cheapest model that meets quality requirements
+- Design for easy model upgrades (single config change)
+- Optimize for batch processing to reduce API calls
+- Cache aggressively to avoid redundant requests
+- Monitor costs in real-time during development
+
 ## What's Next
 
-N3xFin is just the beginning. Future enhancements include:
+N3xFin is just the beginning. The architecture is designed for easy scaling and feature enhancement:
+
+### Immediate Upgrades (Post-Competition)
+- **Enhanced AI Models**: Upgrade to Claude Sonnet 3.5 for recommendations and Opus 4 for conversational Q&A (single config change)
+- **Model A/B Testing**: Compare Haiku vs Sonnet quality metrics to optimize cost/quality tradeoff
+- **Hybrid Approach**: Use Haiku for categorization, Sonnet for insights, Opus for conversation
+
+### Future Enhancements
 - **Multi-bank Integration**: Direct API connections to banks
 - **Investment Tracking**: Portfolio analysis and recommendations
 - **Bill Prediction**: AI predicts upcoming bills based on patterns
