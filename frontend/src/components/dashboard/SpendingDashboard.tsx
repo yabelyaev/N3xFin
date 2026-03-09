@@ -378,16 +378,14 @@ export const SpendingDashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - Time Series Chart */}
         <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">Spending Over Time</h3>
-              <div className="flex items-baseline gap-3 mt-2">
-                <span className="text-sm text-gray-500">
-                  {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                </span>
-                <span className="text-2xl font-bold text-gray-900">
-                  ${totalSpending.toFixed(2)}
-                </span>
+          <div className="flex items-start justify-between mb-6">
+            <h3 className="text-lg font-semibold text-gray-900">Spending Over Time</h3>
+            <div className="text-right">
+              <div className="text-sm text-gray-500">
+                Today: {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              </div>
+              <div className="text-2xl font-bold text-gray-900 mt-1">
+                ${totalSpending.toFixed(2)}
               </div>
             </div>
           </div>

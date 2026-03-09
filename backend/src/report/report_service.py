@@ -475,29 +475,33 @@ Example: ["Your savings rate of 25% is excellent", "Dining spending increased by
     def get_months_with_data(self, user_id: str) -> List[str]:
         """
         Discover which calendar months (YYYY-MM) have at least one transaction.
-        Scans SK keys with prefix TRANSACTION# and extracts the date portion.
+        Scans transactions and extracts the month from the 'date' field.
         Returns sorted list of 'YYYY-MM' strings, oldest first.
         """
         months = set()
         kwargs = dict(
             KeyConditionExpression=Key('PK').eq(f'USER#{user_id}') &
-                                   Key('SK').begins_with('TRANSACTION#'),
-            ProjectionExpression='SK'
+                                   Key('SK').begins_with('TRANSACTION#')
         )
         while True:
             response = self.transactions_table.query(**kwargs)
             for item in response.get('Items', []):
-                sk = item.get('SK', '')
-                # SK format: TRANSACTION#YYYY-MM-DD#<uuid>
-                parts = sk.split('#')
-                if len(parts) >= 2:
-                    date_part = parts[1]  # 'YYYY-MM-DD'
-                    if len(date_part) >= 7:
-                        months.add(date_part[:7])  # 'YYYY-MM'
+                # Use the 'date' field from the transaction item
+                date_str = item.get('date', '')
+                if date_str:
+                    # date format could be 'YYYY-MM-DD' or 'YYYY-MM-DDTHH:MM:SS'
+                    if len(date_str) >= 7:
+                        months.add(date_str[:7])  # Extract 'YYYY-MM'
             if 'LastEvaluatedKey' not in response:
                 break
             kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
-        return sorted(months)
+        
+        # Filter out future months (beyond current month)
+        now = datetime.now(UTC)
+        current_month = now.strftime('%Y-%m')
+        valid_months = [m for m in months if m <= current_month]
+        
+        return sorted(valid_months)
 
     def list_reports(self, user_id: str) -> List[Dict]:
         """
