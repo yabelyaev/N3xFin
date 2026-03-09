@@ -36,7 +36,7 @@ export const demoModeService = {
 
   // Anomalies
   getAnomalies: async () => {
-    return { data: mockAnomalies };
+    return { data: { data: mockAnomalies } };
   },
 
   submitAnomalyFeedback: async () => {
@@ -45,12 +45,12 @@ export const demoModeService = {
 
   // Predictions
   getPredictions: async () => {
-    return { data: mockPredictions };
+    return { data: { predictions: mockPredictions } };
   },
 
   // Recommendations
   getRecommendations: async () => {
-    return { data: mockRecommendations };
+    return { data: { recommendations: mockRecommendations } };
   },
 
   // Reports
