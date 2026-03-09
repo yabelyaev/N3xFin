@@ -399,10 +399,13 @@ export const SpendingDashboard = () => {
           {/* Total Balance Card */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
             <div className="flex items-center justify-between mb-3">
-              <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
-                <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                </svg>
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                  </svg>
+                </div>
+                <p className="text-sm font-medium text-gray-700">Total Spending</p>
               </div>
               <button className="text-gray-400 hover:text-gray-600">
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -410,7 +413,6 @@ export const SpendingDashboard = () => {
                 </svg>
               </button>
             </div>
-            <p className="text-sm text-gray-500 mb-2">Total Spending</p>
             <div className="flex items-baseline justify-between">
               <p className="text-2xl font-bold text-gray-900">${totalSpending.toFixed(2)}</p>
               {trendPercentage !== null && (
@@ -432,8 +434,11 @@ export const SpendingDashboard = () => {
             return (
               <div key={cat.category} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
                 <div className="flex items-center justify-between mb-3">
-                  <div className={`w-10 h-10 ${colors[idx % colors.length].split(' ')[0]} rounded-xl flex items-center justify-center text-xl`}>
-                    {getCategoryIcon(cat.category)}
+                  <div className="flex items-center gap-2">
+                    <div className={`w-9 h-9 ${colors[idx % colors.length].split(' ')[0]} rounded-lg flex items-center justify-center text-xl`}>
+                      {getCategoryIcon(cat.category)}
+                    </div>
+                    <p className="text-sm font-medium text-gray-700">{cat.category}</p>
                   </div>
                   <button className="text-gray-400 hover:text-gray-600">
                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -441,7 +446,6 @@ export const SpendingDashboard = () => {
                     </svg>
                   </button>
                 </div>
-                <p className="text-sm text-gray-500 mb-2">{cat.category}</p>
                 <div className="flex items-baseline justify-between">
                   <p className="text-2xl font-bold text-gray-900">${cat.totalAmount.toFixed(2)}</p>
                   <p className={`text-sm font-medium ${
