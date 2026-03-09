@@ -306,6 +306,13 @@ class ApiService {
     return this.client.get(`/reports/${reportId}`);
   }
 
+  async deleteReport(reportId: string) {
+    if (isDemoMode()) {
+      throw new Error('Cannot delete reports in demo mode');
+    }
+    return this.client.delete(`/reports/${reportId}`);
+  }
+
   async exportReportCSV(reportId: string) {
     return this.client.get(`/reports/${reportId}/export/csv`, {
       responseType: 'blob',

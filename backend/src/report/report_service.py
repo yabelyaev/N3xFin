@@ -94,7 +94,8 @@ class ReportService:
             spending_data,
             category_breakdown,
             savings_rate,
-            trends
+            trends,
+            len(transactions)  # Pass actual transaction count
         )
         
         # Generate recommendations
@@ -329,7 +330,8 @@ class ReportService:
         spending_data: Dict,
         category_breakdown: Dict,
         savings_rate: float,
-        trends: List[Dict]
+        trends: List[Dict],
+        transaction_count: int
     ) -> List[str]:
         """Generate AI-powered insights using Bedrock."""
         try:
@@ -338,6 +340,7 @@ class ReportService:
                 'totalSpending': spending_data['totalSpending'],
                 'totalIncome': spending_data['totalIncome'],
                 'savingsRate': savings_rate,
+                'transactionCount': transaction_count,
                 'topCategories': sorted(
                     category_breakdown.items(),
                     key=lambda x: x[1]['total'],
@@ -351,9 +354,12 @@ class ReportService:
 Total Income: ${spending_data['totalIncome']:.2f}
 Total Spending: ${spending_data['totalSpending']:.2f}
 Savings Rate: {savings_rate:.1f}%
+Transaction Count: {transaction_count}
 
 Top Spending Categories:
 {json.dumps([{cat: data} for cat, data in context['topCategories']], indent=2)}
+
+IMPORTANT: When mentioning the transaction count, use EXACTLY {transaction_count} transactions.
 
 Provide insights as a JSON array of strings. Focus on:
 1. Overall financial health
@@ -390,13 +396,14 @@ Example: ["Your savings rate of 25% is excellent", "Dining spending increased by
         except Exception as e:
             print(f"Error generating insights: {str(e)}")
             # Fallback insights
-            return self._generate_fallback_insights(spending_data, category_breakdown, savings_rate)
+            return self._generate_fallback_insights(spending_data, category_breakdown, savings_rate, transaction_count)
     
     def _generate_fallback_insights(
         self,
         spending_data: Dict,
         category_breakdown: Dict,
-        savings_rate: float
+        savings_rate: float,
+        transaction_count: int
     ) -> List[str]:
         """Generate basic insights when AI fails."""
         insights = []
@@ -419,9 +426,8 @@ Example: ["Your savings rate of 25% is excellent", "Dining spending increased by
                 f"({top_category[1]['percentage']:.1f}% of total spending)."
             )
         
-        # Transaction count
-        total_count = sum(data['count'] for data in category_breakdown.values())
-        insights.append(f"You made {total_count} transactions this month.")
+        # Transaction count - use the passed parameter instead of calculating
+        insights.append(f"You made {transaction_count} transactions this month.")
         
         return insights
     
@@ -573,3 +579,37 @@ Example: ["Your savings rate of 25% is excellent", "Dining spending increased by
         except Exception as e:
             print(f"Error getting report by ID: {str(e)}")
             return None
+
+    def delete_report(self, user_id: str, report_id: str) -> bool:
+        """
+        Delete a specific report by its ID.
+        Report ID format: {user_id}-{YYYY}-{MM}
+        
+        Args:
+            user_id: User identifier
+            report_id: Report identifier
+            
+        Returns:
+            True if deleted successfully, False otherwise
+        """
+        try:
+            # Extract month from report_id (format: user_id-YYYY-MM)
+            parts = report_id.split('-')
+            if len(parts) < 3:
+                return False
+            
+            # Reconstruct month as YYYY-MM
+            month = f"{parts[-2]}-{parts[-1]}"
+            
+            self.reports_table.delete_item(
+                Key={
+                    'PK': f'USER#{user_id}',
+                    'SK': f'REPORT#{month}'
+                }
+            )
+            
+            return True
+            
+        except Exception as e:
+            print(f"Error deleting report: {str(e)}")
+            return False

@@ -686,6 +686,7 @@ Resources:
                 - dynamodb:Query
                 - dynamodb:PutItem
                 - dynamodb:GetItem
+                - dynamodb:DeleteItem
               Resource:
                 - !GetAtt TransactionsTable.Arn
                 - !GetAtt ReportsTable.Arn
@@ -706,6 +707,11 @@ Resources:
           Properties:
             Path: /reports/{reportId}
             Method: GET
+        DeleteReportApi:
+          Type: Api
+          Properties:
+            Path: /reports/{reportId}
+            Method: DELETE
 
   # Conversation Lambda Function
   AskQuestionFunction:

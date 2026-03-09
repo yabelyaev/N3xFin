@@ -34,6 +34,29 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         # ── Get specific report by ID ─────────────────────────────────────
         if path_params.get('reportId'):
             report_id = path_params['reportId']
+            
+            # DELETE request - delete the report
+            if http_method == 'DELETE':
+                success = service.delete_report(user_id, report_id)
+                if not success:
+                    return {
+                        'statusCode': 404,
+                        'headers': {
+                            'Content-Type': 'application/json',
+                            'Access-Control-Allow-Origin': '*'
+                        },
+                        'body': json.dumps({'error': 'Report not found or could not be deleted'})
+                    }
+                return {
+                    'statusCode': 200,
+                    'headers': {
+                        'Content-Type': 'application/json',
+                        'Access-Control-Allow-Origin': '*'
+                    },
+                    'body': json.dumps({'message': 'Report deleted successfully'})
+                }
+            
+            # GET request - get the report
             report = service.get_report_by_id(user_id, report_id)
             if not report:
                 return {

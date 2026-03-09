@@ -10,7 +10,8 @@ import boto3
 from botocore.exceptions import ClientError
 
 dynamodb = boto3.resource('dynamodb')
-table = dynamodb.Table(os.environ.get('DYNAMODB_TABLE', 'n3xfin-data'))
+# Profile data is stored in the transactions table with SK='PROFILE'
+table = dynamodb.Table(os.environ.get('DYNAMODB_TABLE_TRANSACTIONS', 'n3xfin-transactions'))
 
 
 class ProfileService:
