@@ -3,111 +3,78 @@
 ## System Architecture Diagram
 
 ```mermaid
-graph TB
-    subgraph "Client"
-        USER[User Browser]
+graph LR
+    subgraph Users["👥 Users"]
+        CLIENT[Web Browser]
     end
 
-    subgraph "Frontend - AWS Amplify"
-        UI[React App<br/>TypeScript]
+    subgraph Frontend["Frontend Layer"]
+        AMPLIFY[AWS Amplify<br/>React App]
     end
 
-    subgraph "API Layer"
-        APIGW[API Gateway]
-        COGNITO[Cognito<br/>Auth]
+    subgraph API["API Layer"]
+        APIGW[API Gateway<br/>REST API]
+        COGNITO[Amazon Cognito<br/>Authentication]
     end
 
-    subgraph "Compute - AWS Lambda Functions"
-        AUTH[Auth Service]
-        UPLOAD[File Upload]
-        PARSE[PDF/CSV Parser]
-        CATEGORIZE[AI Categorization<br/>Batch Processing]
-        ANALYTICS[Analytics Engine]
-        AI_SERVICES[AI Services<br/>Predictions, Recommendations,<br/>Reports, Q&A]
+    subgraph Compute["Compute Layer"]
+        LAMBDA[AWS Lambda<br/>10 Functions<br/>━━━━━━━━━<br/>Auth • Upload<br/>Parser • Categorization<br/>Analytics • Predictions<br/>Recommendations<br/>Reports • Q&A • Profile]
     end
 
-    subgraph "AI"
-        BEDROCK[Amazon Bedrock<br/>Claude 3.5 Haiku<br/>Claude 3 Sonnet]
+    subgraph AI["AI Layer"]
+        BEDROCK[Amazon Bedrock<br/>━━━━━━━━━<br/>Claude 3.5 Haiku<br/>Claude 3 Sonnet]
     end
 
-    subgraph "Storage"
-        S3[S3 Bucket<br/>Statements]
-        DYNAMO[DynamoDB<br/>Single Table]
+    subgraph Storage["Storage Layer"]
+        S3[Amazon S3<br/>Bank Statements]
+        DYNAMO[Amazon DynamoDB<br/>Single Table Design]
     end
 
-    USER -->|HTTPS| UI
-    UI -->|REST API| APIGW
+    CLIENT -->|HTTPS| AMPLIFY
+    AMPLIFY -->|REST API| APIGW
     APIGW -->|Authorize| COGNITO
-    
-    APIGW --> AUTH
-    APIGW --> UPLOAD
-    APIGW --> PARSE
-    APIGW --> CATEGORIZE
-    APIGW --> ANALYTICS
-    APIGW --> AI_SERVICES
+    APIGW -->|Invoke| LAMBDA
+    LAMBDA -->|AI Requests| BEDROCK
+    LAMBDA -->|Read/Write| S3
+    LAMBDA -->|Query/Update| DYNAMO
 
-    UPLOAD -->|Presigned URLs| S3
-    PARSE -->|Read Files| S3
-    PARSE -->|Store Transactions| DYNAMO
-    
-    CATEGORIZE -->|AI Categorization| BEDROCK
-    CATEGORIZE -->|Update| DYNAMO
-    CATEGORIZE -.->|Self-Invoke<br/>Large Batches| CATEGORIZE
-    
-    AI_SERVICES -->|AI Analysis| BEDROCK
-    AI_SERVICES -->|Query/Update| DYNAMO
-    
-    ANALYTICS -->|Query| DYNAMO
-    AUTH -->|User Data| DYNAMO
-
-    style USER fill:#e1f5ff
-    style UI fill:#61dafb
-    style APIGW fill:#ff4f8b
-    style COGNITO fill:#dd344c
-    style AUTH fill:#ff9900
-    style UPLOAD fill:#ff9900
-    style PARSE fill:#ff9900
-    style CATEGORIZE fill:#ff9900
-    style ANALYTICS fill:#ff9900
-    style AI_SERVICES fill:#ff9900
-    style BEDROCK fill:#00a1c9
-    style S3 fill:#569a31
-    style DYNAMO fill:#4053d6
+    style CLIENT fill:#e1f5ff,stroke:#333,stroke-width:2px
+    style AMPLIFY fill:#ff9900,stroke:#333,stroke-width:2px,color:#fff
+    style APIGW fill:#ff4f8b,stroke:#333,stroke-width:2px,color:#fff
+    style COGNITO fill:#dd344c,stroke:#333,stroke-width:2px,color:#fff
+    style LAMBDA fill:#ff9900,stroke:#333,stroke-width:2px,color:#fff
+    style BEDROCK fill:#00a1c9,stroke:#333,stroke-width:2px,color:#fff
+    style S3 fill:#569a31,stroke:#333,stroke-width:2px,color:#fff
+    style DYNAMO fill:#4053d6,stroke:#333,stroke-width:2px,color:#fff
 ```
 
-### Architecture Layers
+### High-Level Architecture Overview
 
-**Frontend Layer**
-- React SPA with TypeScript
-- Hosted on AWS Amplify with CI/CD
-- Responsive design for desktop and mobile
+**Request Flow**: User → Amplify → API Gateway → Cognito (Auth) → Lambda → Bedrock/S3/DynamoDB
 
-**API Layer**
-- API Gateway for REST endpoints
-- Cognito for JWT-based authentication
-- Request validation and throttling
+**Key Components:**
 
-**Compute Layer (10 Lambda Functions)**
-- **Auth**: Login, register, verify, logout
-- **Upload**: Generate presigned S3 URLs
-- **Parser**: Extract transactions from PDF/CSV
-- **Categorization**: AI-powered batch categorization with self-invocation
-- **Analytics**: Spending analysis and trend calculation
-- **Prediction**: Anomaly detection and alerts
-- **Recommendation**: Savings advice generation
-- **Report**: Monthly report generation
-- **Conversation**: Q&A assistant
-- **Profile**: User goals and preferences
+1. **Frontend (AWS Amplify)**
+   - React SPA with TypeScript
+   - CI/CD from GitHub
+   - Global CDN distribution
 
-**AI Layer**
-- Amazon Bedrock with Claude 3.5 Haiku (primary)
-- Claude 3 Sonnet for PDF parsing
-- Batch processing to optimize costs
+2. **API Layer**
+   - API Gateway: REST endpoints with throttling
+   - Cognito: JWT-based authentication
 
-**Storage Layer**
-- S3 for bank statement files (encrypted)
-- DynamoDB single-table design for all data
-- Server-side encryption at rest
+3. **Compute (AWS Lambda - 10 Functions)**
+   - Auth, Upload, Parser, Categorization
+   - Analytics, Predictions, Recommendations
+   - Reports, Q&A, Profile
+
+4. **AI (Amazon Bedrock)**
+   - Claude 3.5 Haiku: Categorization, recommendations
+   - Claude 3 Sonnet: PDF parsing
+
+5. **Storage**
+   - S3: Encrypted bank statement files
+   - DynamoDB: All application data (single-table design)
 
 ## Data Flow
 
