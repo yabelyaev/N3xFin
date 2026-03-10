@@ -517,9 +517,13 @@ Important: Respond ONLY with the JSON array, no other text."""
                     'message': 'No transactions found'
                 }
             
-            # Convert to Transaction objects
+            # Convert to Transaction objects (skip non-transaction items like PROFILE)
             transactions = []
             for item in items:
+                # Skip non-transaction items
+                if 'id' not in item or 'description' not in item:
+                    continue
+                    
                 from datetime import datetime
                 transactions.append(Transaction(
                     id=item['id'],
