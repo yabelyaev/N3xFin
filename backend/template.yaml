@@ -522,6 +522,31 @@ Resources:
             Path: /categorization/status
             Method: GET
 
+  RecategorizeAllFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: n3xfin-recategorize-all
+      CodeUri: src/
+      Handler: categorization.recategorize_all.lambda_handler
+      Timeout: 120
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:Query
+                - dynamodb:UpdateItem
+              Resource: !GetAtt TransactionsTable.Arn
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource: '*'
+      Events:
+        RecategorizeAllApi:
+          Type: Api
+          Properties:
+            Path: /categorization/recategorize-all
+            Method: POST
+
   # Analytics Lambda Functions
   GetAnalyticsFunction:
     Type: AWS::Serverless::Function

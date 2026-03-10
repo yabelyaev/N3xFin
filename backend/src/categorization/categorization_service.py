@@ -467,3 +467,115 @@ Important: Respond ONLY with the JSON array, no other text."""
                 f'Categorization by ID failed: {str(e)}',
                 {'userId': user_id, 'transactionIds': transaction_ids}
             )
+    
+    def recategorize_all_transactions(self, user_id: str, limit: int = 100) -> Dict[str, Any]:
+        """
+        Recategorize all existing transactions for a user (not just uncategorized ones).
+        This is used when category definitions change.
+        
+        Args:
+            user_id: User ID
+            limit: Maximum number of transactions to process per invocation
+            
+        Returns:
+            Summary of recategorization results
+        """
+        try:
+            from boto3.dynamodb.conditions import Key as DKey
+            
+            # Get all transactions - newest first
+            items = []
+            last_evaluated_key = None
+            max_iterations = 20
+            iterations = 0
+            
+            while len(items) < limit and iterations < max_iterations:
+                query_params = {
+                    'KeyConditionExpression': DKey('PK').eq(f'USER#{user_id}') & DKey('SK').begins_with('TRANSACTION#'),
+                    'ScanIndexForward': False,
+                    'Limit': min(limit * 3, 300)
+                }
+                
+                if last_evaluated_key:
+                    query_params['ExclusiveStartKey'] = last_evaluated_key
+                
+                response = self.transactions_table.query(**query_params)
+                items.extend(response.get('Items', []))
+                
+                last_evaluated_key = response.get('LastEvaluatedKey')
+                if not last_evaluated_key:
+                    break
+                    
+                iterations += 1
+            
+            items = items[:limit]
+            
+            if not items:
+                return {
+                    'totalProcessed': 0,
+                    'recategorized': 0,
+                    'message': 'No transactions found'
+                }
+            
+            # Convert to Transaction objects
+            transactions = []
+            for item in items:
+                from datetime import datetime
+                transactions.append(Transaction(
+                    id=item['id'],
+                    userId=item['PK'].replace('USER#', ''),
+                    date=datetime.fromisoformat(item['date']),
+                    description=item['description'],
+                    amount=float(item['amount']),
+                    balance=float(item.get('balance', 0)) if item.get('balance') else None,
+                    sourceFile=item['sourceFile'],
+                    rawData=item.get('rawData', ''),
+                    category=item.get('category'),
+                    categoryConfidence=float(item.get('categoryConfidence', 0)) if item.get('categoryConfidence') else None,
+                    createdAt=datetime.fromisoformat(item['createdAt'])
+                ))
+            
+            # Recategorize transactions
+            results = self.categorize_batch(transactions)
+            
+            # Update transactions with new categories
+            recategorized_count = 0
+            changed_count = 0
+            for transaction, result in zip(transactions, results):
+                old_category = transaction.category
+                new_category = result['category']
+                
+                self.update_transaction_category(
+                    transaction.id,
+                    user_id,
+                    new_category,
+                    result['confidence'],
+                    result['reasoning']
+                )
+                
+                recategorized_count += 1
+                if old_category != new_category:
+                    changed_count += 1
+            
+            # Check if there are more transactions to process
+            count_response = self.transactions_table.query(
+                KeyConditionExpression=DKey('PK').eq(f'USER#{user_id}') & DKey('SK').begins_with('TRANSACTION#'),
+                Select='COUNT'
+            )
+            total_transactions = count_response.get('Count', 0)
+            
+            return {
+                'totalProcessed': len(transactions),
+                'recategorized': recategorized_count,
+                'changed': changed_count,
+                'unchanged': recategorized_count - changed_count,
+                'totalTransactions': total_transactions,
+                'message': f'Recategorized {recategorized_count} transactions ({changed_count} changed category)'
+            }
+            
+        except Exception as e:
+            print(f'Failed to recategorize transactions: {str(e)}')
+            raise ExternalServiceError(
+                f'Recategorization failed: {str(e)}',
+                {'userId': user_id}
+            )
