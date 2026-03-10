@@ -1,3 +1,4 @@
+/// <reference types="@testing-library/jest-dom/vitest" />
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
@@ -107,7 +108,13 @@ describe('SettingsPage', () => {
   });
 
   it('saves preferences successfully', async () => {
-    vi.mocked(apiService.updateUserPreferences).mockResolvedValue({});
+    vi.mocked(apiService.updateUserPreferences).mockResolvedValue({
+      data: {},
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: {} as any,
+    });
 
     renderComponent();
 

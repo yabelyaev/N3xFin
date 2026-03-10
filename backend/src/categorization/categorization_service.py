@@ -127,16 +127,21 @@ class CategorizationService:
 Categories: {categories_str}
 
 Category Definitions:
-- Dining: Restaurants, cafes, food delivery, bars
-- Transportation: Gas, public transit, ride-sharing, parking, car maintenance
-- Utilities: Electricity, water, gas, internet, phone bills
-- Entertainment: Movies, concerts, streaming services, games, hobbies
-- Shopping: Retail purchases, online shopping, clothing, electronics
-- Healthcare: Doctor visits, pharmacy, medical bills, insurance
-- Housing: Rent, mortgage, property tax, home maintenance
-- Income: Salary, wages, bonuses, refunds, transfers in
-- Savings: Transfers to savings, investments
-- Other: Anything that doesn't fit the above categories
+- Dining: Restaurants, cafes, bars, takeaway food, and food delivery services.
+- Groceries: Supermarkets, grocery stores, food markets, and ingredients purchased for home cooking.
+- Transportation: Fuel, public transport, ride-sharing, taxis, parking, tolls, and vehicle maintenance.
+- Utilities: Electricity, water, gas, internet, mobile phone bills, and other household utility services.
+- Entertainment: Movies, concerts, streaming services, gaming, sports events, and leisure activities.
+- Shopping: Retail purchases such as clothing, electronics, home goods, and general online shopping.
+- Healthcare: Medical expenses including doctor visits, pharmacies, medical treatments, and health insurance.
+- Health & Fitness: Gym memberships, fitness studios, yoga or pilates classes, and personal training.
+- Housing: Rent, mortgage payments, property tax, home maintenance, and household repairs.
+- Income: Salary, wages, bonuses, refunds, interest income, and incoming transfers from external sources.
+- Savings & Investments: Transfers to savings accounts, brokerage accounts, retirement funds, or investment platforms.
+- Loans & Debt: Loan repayments, credit card payments, mortgage repayments, and other debt servicing.
+- ATM & Cash: ATM withdrawals, cash advances, and other transactions converting funds to physical cash.
+- Transfers: Internal transfers between a user's own accounts.
+- Other: Transactions that do not clearly fit any defined category.
 
 Transactions to categorize:
 {transactions_str}

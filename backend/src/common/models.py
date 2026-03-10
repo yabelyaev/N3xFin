@@ -103,14 +103,16 @@ class FinancialHealthReport:
 # Category taxonomy
 CATEGORIES = [
     'Dining',
+    'Groceries',
     'Transportation',
     'Utilities',
     'Entertainment',
     'Shopping',
     'Healthcare',
+    'Health & Fitness',
     'Housing',
     'Income',
-    'Savings',
+    'Savings & Investments',
     'Loans & Debt',
     'ATM & Cash',
     'Transfers',
