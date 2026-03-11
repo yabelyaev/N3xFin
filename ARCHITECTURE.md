@@ -18,7 +18,7 @@ graph LR
     end
 
     subgraph Compute["Compute Layer"]
-        LAMBDA[AWS Lambda<br/>10 Functions<br/>━━━━━━━━━<br/>Auth • Upload<br/>Parser • Categorization<br/>Analytics • Predictions<br/>Recommendations<br/>Reports • Q&A • Profile]
+        LAMBDA[AWS Lambda<br/>22 Functions<br/>━━━━━━━━━<br/>Auth • Upload<br/>Parser • Categorization<br/>Analytics • Predictions<br/>Recommendations<br/>Reports • Q&A • Profile]
     end
 
     subgraph AI["AI Layer"]
@@ -63,10 +63,17 @@ graph LR
    - API Gateway: REST endpoints with throttling
    - Cognito: JWT-based authentication
 
-3. **Compute (AWS Lambda - 10 Functions)**
-   - Auth, Upload, Parser, Categorization
-   - Analytics, Predictions, Recommendations
-   - Reports, Q&A, Profile
+3. **Compute (AWS Lambda - 22 Functions)**
+   - Authentication (5): Register, Login, Verify, Logout, DeleteAccount
+   - File Upload (4): GetUploadUrl, VerifyUpload, ListFiles, DeleteStatement
+   - Document Processing (1): ParseStatement
+   - Transaction Categorization (3): CategorizeTransactions, GetCategorizationStatus, RecategorizeAll
+   - Analytics (2): GetAnalytics, SubmitAnomalyFeedback
+   - Predictions (2): GetPredictions, GetAlerts
+   - Recommendations (1): GetRecommendations
+   - User Profile (2): GetProfile, SaveProfile
+   - Reports (1): GenerateReport
+   - Conversational AI (1): AskQuestion
 
 4. **AI (Amazon Bedrock)**
    - Claude 3.5 Haiku: Categorization, recommendations
@@ -75,6 +82,70 @@ graph LR
 5. **Storage**
    - S3: Encrypted bank statement files
    - DynamoDB: All application data (single-table design)
+
+## Lambda Functions Breakdown
+
+### Authentication Domain (5 Functions)
+| Function | Endpoint | Purpose |
+|----------|----------|---------|
+| **RegisterFunction** | POST /auth/register | Create new user account with Cognito |
+| **LoginFunction** | POST /auth/login | Authenticate user and return JWT token |
+| **VerifyFunction** | POST /auth/verify | Verify email confirmation code |
+| **LogoutFunction** | POST /auth/logout | Invalidate user session |
+| **DeleteAccountFunction** | DELETE /auth/account | Delete user account and all associated data |
+
+### File Upload Domain (4 Functions)
+| Function | Endpoint | Purpose |
+|----------|----------|---------|
+| **GetUploadUrlFunction** | GET /upload/url | Generate presigned S3 URL for file upload |
+| **VerifyUploadFunction** | POST /upload/verify | Verify uploaded file and trigger processing |
+| **ListFilesFunction** | GET /upload/files | List all uploaded statements for user |
+| **DeleteStatementFunction** | DELETE /upload/files/{fileId} | Delete uploaded statement file |
+
+### Document Processing Domain (1 Function)
+| Function | Endpoint | Purpose |
+|----------|----------|---------|
+| **ParseStatementFunction** | POST /parser/parse | Extract transactions from PDF/CSV statements |
+
+### Transaction Categorization Domain (3 Functions)
+| Function | Endpoint | Purpose |
+|----------|----------|---------|
+| **CategorizeTransactionsFunction** | POST /categorization/categorize | AI-powered transaction categorization using Bedrock |
+| **GetCategorizationStatusFunction** | GET /categorization/status | Check categorization progress for batch processing |
+| **RecategorizeAllFunction** | POST /categorization/recategorize | Recategorize all existing transactions with updated rules |
+
+### Analytics Domain (2 Functions)
+| Function | Endpoint | Purpose |
+|----------|----------|---------|
+| **GetAnalyticsFunction** | GET /analytics | Retrieve spending analytics, trends, and anomalies |
+| **SubmitAnomalyFeedbackFunction** | POST /analytics/anomaly/feedback | Submit user feedback on detected anomalies |
+
+### Predictions Domain (2 Functions)
+| Function | Endpoint | Purpose |
+|----------|----------|---------|
+| **GetPredictionsFunction** | GET /predictions | Generate spending predictions based on historical data |
+| **GetAlertsFunction** | GET /predictions/alerts | Retrieve predictive spending alerts |
+
+### Recommendations Domain (1 Function)
+| Function | Endpoint | Purpose |
+|----------|----------|---------|
+| **GetRecommendationsFunction** | GET /recommendations | AI-generated personalized savings recommendations |
+
+### User Profile Domain (2 Functions)
+| Function | Endpoint | Purpose |
+|----------|----------|---------|
+| **GetProfileFunction** | GET /profile | Retrieve user profile and financial goals |
+| **SaveProfileFunction** | POST /profile | Update user profile and financial goals |
+
+### Reports Domain (1 Function)
+| Function | Endpoint | Purpose |
+|----------|----------|---------|
+| **GenerateReportFunction** | POST /reports/generate | Generate monthly financial health report |
+
+### Conversational AI Domain (1 Function)
+| Function | Endpoint | Purpose |
+|----------|----------|---------|
+| **AskQuestionFunction** | POST /conversation/ask | Natural language Q&A about user's finances |
 
 ## Data Flow
 
