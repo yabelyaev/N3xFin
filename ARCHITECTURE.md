@@ -32,9 +32,11 @@ graph LR
 
     CLIENT -->|HTTPS| AMPLIFY
     AMPLIFY -->|REST API| APIGW
-    APIGW -->|Authorize| COGNITO
+    APIGW -->|Verify JWT| COGNITO
+    COGNITO -->|Auth Result| APIGW
     APIGW -->|Invoke| LAMBDA
     LAMBDA -->|AI Requests| BEDROCK
+    BEDROCK -->|AI Response| LAMBDA
     LAMBDA -->|Read/Write| S3
     LAMBDA -->|Query/Update| DYNAMO
 
