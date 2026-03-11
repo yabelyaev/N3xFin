@@ -30,11 +30,14 @@ graph LR
         DYNAMO[Amazon DynamoDB<br/>Single Table Design]
     end
 
-    CLIENT -->|HTTPS| AMPLIFY
-    AMPLIFY -->|REST API| APIGW
+    CLIENT -->|HTTPS Request| AMPLIFY
+    AMPLIFY -->|REST API Call| APIGW
     APIGW -->|Verify JWT| COGNITO
     COGNITO -->|Auth Result| APIGW
     APIGW -->|Invoke| LAMBDA
+    LAMBDA -->|Response| APIGW
+    APIGW -->|JSON Response| AMPLIFY
+    AMPLIFY -->|Render UI| CLIENT
     LAMBDA -->|AI Requests| BEDROCK
     BEDROCK -->|AI Response| LAMBDA
     LAMBDA -->|Read/Write| S3
